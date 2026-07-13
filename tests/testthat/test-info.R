@@ -1,7 +1,7 @@
 # Tests for info functions
 
-# Use a small test file
-TEST_FILE <- "tiny1.mzML0.99.1.mzML"
+# Use a small test file with standard format
+TEST_FILE <- "tiny.pwiz.mzML0.99.10.mzML"
 
 test_that("get_file_info returns expected structure", {
   test_file <- system.file("extdata", TEST_FILE, package = "mzmlr")
