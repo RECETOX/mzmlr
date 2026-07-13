@@ -1,4 +1,4 @@
-# mzmlr <img src="man/figures/logo.png" align="right" height="138.5" alt="" />
+# mzmlr
 
 <!-- badges: start -->
 [![R CMD check](https://github.com/RECETOX/mzmlr/actions/workflows/r.yml/badge.svg)](https://github.com/RECETOX/mzmlr/actions/workflows/r.yml)
