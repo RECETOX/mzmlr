@@ -7,7 +7,7 @@ Description: Provides functionality to validate and read mzML files, a standard
     the 'mzR' package, using native R XML handling capabilities. Supports
     validation against the official mzML XSD schema and HUPO-PSI MS Controlled
     Vocabulary. Uses pure R parsing when xml2 is not available.
-License: MIT + file LICENSE
+License: MIT
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Imports:
