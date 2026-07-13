@@ -1,0 +1,26 @@
+Package: mzmlr
+Title: Read and Validate mzML Mass Spectrometry Files
+Version: 0.1.0
+Authors@R: person("Helge", "Hecht", email = "helge.hecht@recetox.muni.cz", role = c("aut", "cre"))
+Description: Provides functionality to validate and read mzML files, a standard
+    format for mass spectrometry data. Implements XML parsing without relying on
+    the 'mzR' package, using native R XML handling capabilities. Supports
+    validation against the official mzML XSD schema and HUPO-PSI MS Controlled
+    Vocabulary. Uses pure R parsing when xml2 is not available.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Imports:
+    rlang,
+    tools,
+    cli
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    roxygen2,
+    base64enc,
+    openssl,
+    xml2
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0

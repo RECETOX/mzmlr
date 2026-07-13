@@ -1,0 +1,210 @@
+---
+title: "mzmlr Introduction"
+author: "mzmlr Developers"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{mzmlr Introduction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Introduction
+
+The `mzmlr` package provides functionality to validate and read mzML files, the standard format for mass spectrometry data defined by HUPO-PSI. Unlike the `mzR` package which relies on external C++ libraries, `mzmlr` uses native R XML parsing capabilities via the `xml2` package.
+
+## Installation
+
+```{r installation, eval = FALSE}
+# Install from CRAN
+install.packages("mzmlr")
+
+# Or install development version
+# devtools::install_github("yourusername/mzmlr")
+```
+
+## Basic Usage
+
+### Reading an mzML File
+
+```{r read-example, eval = FALSE}
+library(mzmlr)
+
+# Read an mzML file with validation
+mzml <- read_mzml("path/to/file.mzML")
+
+# The returned object is of class MzMlFile
+class(mzml)
+# [1] "MzMlFile"
+```
+
+### File Validation
+
+Before reading, you can validate an mzML file against the official XSD schema:
+
+```{r validate-example, eval = FALSE}
+result <- validate_mzml("path/to/file.mzML")
+
+if (result$valid) {
+  cat("Valid mzML version", result$version, "\n")
+} else {
+  cat("Validation errors:", result$message, "\n")
+}
+```
+
+## Extracting Metadata
+
+### File Information
+
+```{r info-example, eval = FALSE}
+info <- get_file_info(mzml)
+
+# View summary
+print(info)
+
+# Access specific fields
+info$spectrum_count
+info$ms_levels
+info$start_time
+```
+
+### Instrument Configuration
+
+```{r instrument-example, eval = FALSE}
+instr <- get_instrument_info(mzml)
+
+# View instrument details
+print(instr)
+
+# Get components
+instr$components
+```
+
+## Reading Spectrum Data
+
+### Single Spectrum
+
+```{r spectrum-example, eval = FALSE}
+# Get the first spectrum
+spec <- get_spectrum(mzml, index = 1)
+
+# Plot the spectrum
+plot(spec$mz, spec$intensity, type = "l",
+     xlab = "m/z", ylab = "Intensity",
+     main = paste("MS Level", spec$ms_level))
+```
+
+### Multiple Spectra
+
+```{r spectra-example, eval = FALSE}
+# Get first 10 spectra
+spectra <- get_spectra(mzml, indices = 1:10)
+
+# Get all MS1 spectra
+ms1_spectra <- get_spectra(mzml, ms_level = 1)
+
+# Process each spectrum
+for (i in seq_along(ms1_spectra)) {
+  spec <- ms1_spectra[[i]]
+  cat(sprintf("Spectrum %d: %d peaks, TIC = %.2f\n",
+              i, length(spec$mz), spec$total_ion_current))
+}
+```
+
+## Reading Chromatogram Data
+
+```{r chromatogram-example, eval = FALSE}
+# Get all chromatograms
+chromatograms <- get_chromatograms(mzml)
+
+# Plot if available
+if (length(chromatograms) > 0) {
+  chrom <- chromatograms[[1]]
+  plot(chrom$time, chrom$intensity, type = "l",
+       xlab = "Time", ylab = "Intensity",
+       main = chrom$chromatogram_type)
+}
+```
+
+## Memory-Efficient Processing
+
+For large files, process spectra one at a time to avoid memory issues:
+
+```{r memory-efficient, eval = FALSE}
+# Get total count without loading data
+info <- get_file_info(mzml)
+n_spectra <- info$spectrum_count
+
+# Process in batches
+batch_size <- 100
+for (start in seq(1, n_spectra, by = batch_size)) {
+  end <- min(start + batch_size - 1, n_spectra)
+  batch <- get_spectra(mzml, indices = start:end)
+
+  # Process batch
+  # ...
+
+  # Clear memory
+  rm(batch)
+  gc()
+}
+```
+
+## Working with Binary Data
+
+The package automatically handles:
+- Base64 decoding
+- zlib decompression
+- 32-bit float and 64-bit double conversion
+
+```{r binary-data, eval = FALSE}
+# All binary data handling is automatic
+spec <- get_spectrum(mzml, 1)
+
+# Data is ready for analysis
+summary(spec$mz)
+summary(spec$intensity)
+```
+
+## Error Handling
+
+The package provides informative error messages:
+
+```{r error-handling, eval = FALSE}
+tryCatch({
+  mzml <- read_mzml("nonexistent.mzML")
+}, error = function(e) {
+  cat("Error:", conditionMessage(e), "\n")
+})
+```
+
+## Advanced Features
+
+### Custom Schema Validation
+
+```{r custom-schema, eval = FALSE}
+# Use a custom XSD schema for validation
+result <- validate_mzml("file.mzML",
+                        schema_path = "path/to/custom.xsd")
+```
+
+### Disabling Validation
+
+For faster loading when validation is not needed:
+
+```{r no-validation, eval = FALSE}
+mzml <- read_mzml("file.mzML", validate = FALSE)
+```
+
+## See Also
+
+- [HUPO-PSI mzML specification](https://www.psidev.info/mzml)
+- [mzML GitHub repository](https://github.com/HUPO-PSI/mzML)
+- [mzR package](https://cran.r-project.org/package=mzR)

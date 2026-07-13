@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<!-- Created with Liquid XML Studio 1.0.8.0 (http://www.www.liquid-technologies.com) -->
+<xs:schema xmlns:dx="http://psi.hupo.org/ms/mzml" attributeFormDefault="unqualified" elementFormDefault="qualified" targetNamespace="http://psi.hupo.org/ms/mzml" version="1.1.1" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:complexType name="mzMLType">
+    <xs:annotation>
+      <xs:documentation>This is the root element for the Proteomics Standards Initiative (PSI) mzML schema, which is intended to capture the use of a mass spectrometer, the data generated, and the initial processing of that data (to the level of the peak list).</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="cvList" type="dx:CVListType" />
+      <xs:element name="fileDescription" type="dx:FileDescriptionType" />
+      <xs:element minOccurs="0" name="referenceableParamGroupList" type="dx:ReferenceableParamGroupListType" />
+      <xs:element minOccurs="0" name="sampleList" type="dx:SampleListType" />
+      <xs:element name="softwareList" type="dx:SoftwareListType" />
+      <xs:element minOccurs="0" name="scanSettingsList" type="dx:ScanSettingsListType" />
+      <xs:element name="instrumentConfigurationList" type="dx:InstrumentConfigurationListType" />
+      <xs:element name="dataProcessingList" type="dx:DataProcessingListType" />
+      <xs:element name="run" type="dx:RunType" />
+    </xs:sequence>
+    <xs:attribute name="accession" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>An optional accession number for the mzML document used for storage, e.g. in PRIDE.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="version" type="xs:string" use="required">
+      <xs:annotation>
+        <xs:documentation>The version of this mzML document.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="id" type="xs:string" use="optional">
+      <xs:annotation>
+        <xs:documentation>An optional id for the mzML document used for referencing from external files. It is recommended to use LSIDs when possible.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+</xs:schema>
