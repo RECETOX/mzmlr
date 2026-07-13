@@ -2,39 +2,71 @@
 #'
 #' The MzMlFile class provides a structured representation of an mzML file,
 #' storing parsed XML data and metadata for efficient access to spectra and
-#' chromatograms.
+#' chromatograms. Supports both local file paths and URLs.
 #'
-#' @param path Character string giving the path to the mzML file
+#' @param path Character string giving the path to the mzML file or a URL
+#'   (http://, https://, ftp://)
 #' @param xml_doc Parsed XML document (optional, for internal use)
 #' @param validate Logical indicating whether to validate against XSD schema
-#' @return An object of class "MzMlFile"
+#' @return An object of class "MzMlFile" with an additional `temp_file` component
+#'   if the input was a URL (for cleanup purposes)
 #'
 #' @examples
 #' \dontrun{
+#' # Local file
 #' mzml <- MzMlFile("path/to/file.mzML")
-#' info <- get_file_info(mzml)
+#'
+#' # From URL
+#' mzml <- MzMlFile("https://example.com/data/file.mzML")
+#'
+#' # Clean up temporary file after use
+#' unlink(mzml$temp_file)
 #' }
 #'
 #' @export
 MzMlFile <- function(path, xml_doc = NULL, validate = TRUE) {
-  # Validate file exists
-  if (!file.exists(path)) {
-    cli::cli_abort("File not found: {.file {path}}")
+  # Check if path is a URL
+  is_url <- grepl("^(https?|ftp)://", path, ignore.case = TRUE)
+
+  temp_file <- NULL
+
+  if (is_url) {
+    # Download file to temporary location
+    temp_file <- tempfile(fileext = ".mzML")
+    on.exit(unlink(temp_file), add = TRUE)
+
+    tryCatch(
+      {
+        utils::download.file(path, destfile = temp_file, mode = "wb", quiet = TRUE)
+      },
+      error = function(e) {
+        cli::cli_abort("Failed to download file from URL: {.url {path}}\nError: {e$message}")
+      }
+    )
+
+    # Use the downloaded file for processing
+    actual_path <- temp_file
+  } else {
+    # Validate local file exists
+    if (!file.exists(path)) {
+      cli::cli_abort("File not found: {.file {path}}")
+    }
+    actual_path <- path
   }
 
   # Check file extension
-  if (!grepl("\\.mzML$", path, ignore.case = TRUE)) {
-    cli::cli_warn("File does not have .mzML extension: {.file {path}}")
+  if (!grepl("\\.mzML$", actual_path, ignore.case = TRUE)) {
+    cli::cli_warn("File does not have .mzML extension: {.file {actual_path}}")
   }
 
   # Parse XML document
   if (is.null(xml_doc)) {
-    xml_doc <- .read_xml(path, encoding = "UTF-8")
+    xml_doc <- .read_xml(actual_path, encoding = "UTF-8")
   }
 
   # Validate against schema if requested
   if (validate) {
-    validation_result <- validate_mzml(path)
+    validation_result <- validate_mzml(actual_path)
     if (!validation_result$valid) {
       cli::cli_abort("Validation failed: {validation_result$message}")
     }
@@ -60,16 +92,30 @@ MzMlFile <- function(path, xml_doc = NULL, validate = TRUE) {
   if (is.null(id) || is.na(id) || id == "") id <- NA_character_
 
   # Create and return object
-  structure(
+  result <- structure(
     list(
-      path = normalizePath(path),
+      path = if (is_url) path else normalizePath(actual_path),
+      original_path = path,
+      temp_file = temp_file,
       xml = xml_doc,
       version = version,
       id = id,
-      validated = validate
+      validated = validate,
+      is_url = is_url
     ),
     class = "MzMlFile"
   )
+
+  # Set up cleanup handler for URL-based files
+  if (is_url) {
+    reg.finalizer(environment(), function(e) {
+      if (!is.null(e$temp_file) && file.exists(e$temp_file)) {
+        unlink(e$temp_file)
+      }
+    }, onexit = FALSE)
+  }
+
+  result
 }
 
 #' Print method for MzMlFile objects
@@ -80,7 +126,14 @@ MzMlFile <- function(path, xml_doc = NULL, validate = TRUE) {
 #' @export
 print.MzMlFile <- function(x, ...) {
   cat("<MzMlFile>\n")
-  cat("  Path: ", x$path, "\n", sep = "")
+
+  if (x$is_url) {
+    cat("  URL: ", x$original_path, "\n", sep = "")
+    cat("  Temp file: ", basename(x$temp_file), "\n", sep = "")
+  } else {
+    cat("  Path: ", x$path, "\n", sep = "")
+  }
+
   cat("  Version: ", ifelse(is.na(x$version), "unknown", x$version), "\n", sep = "")
   if (!is.na(x$id)) {
     cat("  ID: ", x$id, "\n", sep = "")

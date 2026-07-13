@@ -1,23 +1,32 @@
 #' Read mzML file into R
 #'
-#' Reads an mzML file and returns a structured MzMlFile object containing
-#' parsed XML data and metadata.
+#' Reads an mzML file from a local path or URL and returns a structured
+#' MzMlFile object containing parsed XML data and metadata.
 #'
-#' @param path Character string giving the path to the mzML file
+#' @param path Character string giving the path to the mzML file or a URL
+#'   (http://, https://, ftp://)
 #' @param validate Logical; whether to validate against XSD schema (default TRUE)
 #' @param lazy Logical; if TRUE, only parse metadata and defer spectrum/chromatogram
 #'   parsing until requested (default TRUE for memory efficiency)
 #'
 #' @return An object of class [MzMlFile()] with the following components:
 #'   \describe{
-#'     \item{path}{Absolute path to the mzML file}
+#'     \item{path}{Absolute path to the mzML file or the original URL}
+#'     \item{original_path}{The original path or URL provided}
+#'     \item{temp_file}{Temporary file path if input was a URL (NULL for local files)}
 #'     \item{xml}{Parsed XML document}
 #'     \item{version}{mzML schema version}
 #'     \item{id}{File identifier from root element}
 #'     \item{validated}{Whether validation was performed}
+#'     \item{is_url}{Logical indicating if the input was a URL}
 #'   }
 #'
 #' @details
+#' When reading from a URL, the file is downloaded to a temporary location,
+#' parsed, and the temporary file is tracked for cleanup. The temporary file
+#' will be automatically removed when the R session ends, but you can manually
+#' remove it with \code{unlink(mzml$temp_file)}.
+#'
 #' The function uses lazy loading by default, meaning that binary spectrum
 #' data is not decoded until explicitly requested via [get_spectrum()],
 #' [get_spectra()], or [get_chromatograms()]. This significantly reduces
@@ -28,8 +37,11 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Basic reading
+#' # Basic reading from local file
 #' mzml <- read_mzml("path/to/file.mzML")
+#'
+#' # Reading from URL
+#' mzml <- read_mzml("https://example.com/data/file.mzML")
 #'
 #' # Get file information
 #' info <- get_file_info(mzml)
@@ -39,6 +51,11 @@
 #'
 #' # Get single spectrum by index
 #' spec <- get_spectrum(mzml, 1)
+#'
+#' # Clean up temporary file after use (for URL-based reads)
+#' if (!is.null(mzml$temp_file)) {
+#'   unlink(mzml$temp_file)
+#' }
 #' }
 #'
 #' @export

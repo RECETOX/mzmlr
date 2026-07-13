@@ -2,8 +2,10 @@
 #'
 #' Validates an mzML file against the official HUPO-PSI mzML XSD schema.
 #' This function checks both XML well-formedness and schema conformance.
+#' Supports both local file paths and URLs.
 #'
-#' @param path Character string giving the path to the mzML file
+#' @param path Character string giving the path to the mzML file or a URL
+#'   (http://, https://, ftp://)
 #' @param schema_path Optional path to custom XSD schema. If NULL, uses
 #'   the bundled mzML1.1.1.xsd schema.
 #' @return A list with components:
@@ -24,9 +26,17 @@
 #' validation is performed. Otherwise, a structural validation is done by
 #' checking required elements and attributes are present.
 #'
+#' When a URL is provided, the file is downloaded to a temporary location,
+#' validated, and the temporary file is automatically cleaned up.
+#'
 #' @examples
 #' \dontrun{
+#' # Local file
 #' result <- validate_mzml("path/to/file.mzML")
+#'
+#' # From URL
+#' result <- validate_mzml("https://example.com/data/file.mzML")
+#'
 #' if (result$valid) {
 #'   cat("File is valid mzML version", result$version, "\n")
 #' } else {
@@ -36,8 +46,34 @@
 #'
 #' @export
 validate_mzml <- function(path, schema_path = NULL) {
+  # Check if path is a URL
+  is_url <- grepl("^(https?|ftp)://", path, ignore.case = TRUE)
+
+  actual_path <- path
+
+  if (is_url) {
+    # Download file to temporary location
+    temp_file <- tempfile(fileext = ".mzML")
+    on.exit(unlink(temp_file), add = TRUE)
+
+    tryCatch(
+      {
+        utils::download.file(path, destfile = temp_file, mode = "wb", quiet = TRUE)
+      },
+      error = function(e) {
+        return(list(
+          valid = FALSE,
+          message = paste("Failed to download file from URL:", e$message),
+          version = NA_character_
+        ))
+      }
+    )
+
+    actual_path <- temp_file
+  }
+
   # Check file exists
-  if (!file.exists(path)) {
+  if (!file.exists(actual_path)) {
     return(list(
       valid = FALSE,
       message = paste("File not found:", path),
@@ -47,7 +83,7 @@ validate_mzml <- function(path, schema_path = NULL) {
 
   # Try to parse XML first
   xml_doc <- tryCatch(
-    .read_xml(path, encoding = "UTF-8"),
+    .read_xml(actual_path, encoding = "UTF-8"),
     error = function(e) {
       return(list(
         valid = FALSE,
@@ -74,7 +110,7 @@ validate_mzml <- function(path, schema_path = NULL) {
   }
 
   # Read file content for structural validation
-  content <- readLines(path, warn = FALSE, encoding = "UTF-8")
+  content <- readLines(actual_path, warn = FALSE, encoding = "UTF-8")
   content <- paste(content, collapse = "\n")
 
   # Structural validation - check required elements
