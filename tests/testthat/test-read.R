@@ -24,8 +24,8 @@ test_that("read_mzml validates by default", {
   writeLines(c(
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<mzML version="1.1.0" xmlns="http://psi.hupo.org/ms/mzml">',
-    '  <!-- Missing required elements -->',
-    '</mzML>'
+    "  <!-- Missing required elements -->",
+    "</mzML>"
   ), tmp_file)
 
   on.exit(unlink(tmp_file))

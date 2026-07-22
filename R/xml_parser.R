@@ -173,7 +173,9 @@
 #' @return Vector with reduced precision (float32 equivalent)
 #' @keywords internal
 .convert_to_float32 <- function(x) {
-  if (length(x) == 0) return(numeric(0))
+  if (length(x) == 0) {
+    return(numeric(0))
+  }
 
   # Try native float support (R 4.4+)
   if (getRversion() >= "4.4.0") {

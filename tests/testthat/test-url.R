@@ -29,19 +29,22 @@ test_that("read_mzml from URL creates MzMlFile with temp_file", {
   skip_on_cran()
   # Skip if no internet connection
   if (!requireNamespace("curl", quietly = TRUE) ||
-      curl::has_internet() == FALSE) {
+    curl::has_internet() == FALSE) {
     skip("No internet connection")
   }
 
-  url <- 'https://zenodo.org/records/10618833/files/8_qc_no_dil_milliq.mzml.mzml?download=1'
+  url <- "https://zenodo.org/records/10618833/files/8_qc_no_dil_milliq.mzml.mzml?download=1"
 
   # Wrap in tryCatch to handle download failures
-  result <- tryCatch({
-    mzml <- read_mzml(url, validate = FALSE)
-    list(success = TRUE, mzml = mzml)
-  }, error = function(e) {
-    list(success = FALSE, error = e$message)
-  })
+  result <- tryCatch(
+    {
+      mzml <- read_mzml(url, validate = FALSE)
+      list(success = TRUE, mzml = mzml)
+    },
+    error = function(e) {
+      list(success = FALSE, error = e$message)
+    }
+  )
 
   if (!result$success) {
     skip(paste("Download failed:", result$error))

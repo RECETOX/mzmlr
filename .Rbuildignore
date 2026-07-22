@@ -3,6 +3,8 @@
 ^[.]git$
 ^[.]github$
 ^README\.md$
-^LICENSE$
 ^8_qc_no_dil_milliq\.mzml$
 ^xsd$
+environment\.yml$
+optimization\.md$
+\.claude/

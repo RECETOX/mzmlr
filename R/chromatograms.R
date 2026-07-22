@@ -131,10 +131,14 @@ get_chromatogram <- function(mzml, index, time_precision = 2) {
           id = .xml_attr(t, "id"),
           precursor_mz = if (length(prec_mz_params) > 0) {
             as.numeric(.xml_attr(prec_mz_params[[1]], "value"))
-          } else NA_real_,
+          } else {
+            NA_real_
+          },
           product_mz = if (length(prod_mz_params) > 0) {
             as.numeric(.xml_attr(prod_mz_params[[1]], "value"))
-          } else NA_real_
+          } else {
+            NA_real_
+          }
         )
       })
     }

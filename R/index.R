@@ -38,7 +38,7 @@
   current_pos <- 0L
 
   # Pre-allocate vectors (will grow as needed)
-  max_estimated_spectra <- floor(file_size / 1000)  # Estimate ~1KB per spectrum minimum
+  max_estimated_spectra <- floor(file_size / 1000) # Estimate ~1KB per spectrum minimum
   positions <- integer(max(100, max_estimated_spectra))
   end_positions <- integer(max(100, max_estimated_spectra))
 
@@ -46,8 +46,8 @@
   end_idx <- 1L
 
   # Pattern for spectrum start tags (not spectrumList or spectrumDescription)
-  start_pattern <- '<spectrum(?![a-zA-Z])'
-  end_pattern <- '</spectrum>'
+  start_pattern <- "<spectrum(?![a-zA-Z])"
+  end_pattern <- "</spectrum>"
 
   # Read file line by line
   while (TRUE) {
@@ -59,7 +59,7 @@
       next
     }
 
-    line_bytes <- nchar(line, type = "bytes") + 1L  # +1 for newline character
+    line_bytes <- nchar(line, type = "bytes") + 1L # +1 for newline character
 
     # Find spectrum start tags in this line
     if (grepl(start_pattern, line, ignore.case = TRUE, perl = TRUE)) {
@@ -169,7 +169,7 @@
 
       end_match <- regexpr("</spectrum>", buffer, ignore.case = TRUE)
       if (end_match[1] > 0) {
-        end_pos <- start_pos + end_match[1] + 10  # Length of </spectrum>
+        end_pos <- start_pos + end_match[1] + 10 # Length of </spectrum>
         break
       }
 
@@ -187,7 +187,9 @@
   seek(con, start_pos)
   bytes_to_read <- end_pos - start_pos
 
-  if (bytes_to_read <= 0) return("")
+  if (bytes_to_read <= 0) {
+    return("")
+  }
 
   raw_data <- readBin(con, "raw", n = bytes_to_read)
   rawToChar(raw_data)
@@ -204,7 +206,9 @@
 #' @return Named list of XML strings, named by spectrum index
 #' @keywords internal
 .extract_spectra_batch <- function(file_path, index, indices) {
-  if (length(indices) == 0) return(list())
+  if (length(indices) == 0) {
+    return(list())
+  }
 
   # Sort indices for efficient sequential reading
   sorted_indices <- sort(indices)
@@ -228,7 +232,7 @@
       con <- file(file_path, "rb")
       on.exit(close(con), add = TRUE)
       seek(con, end_pos)
-      chunk_raw <- readBin(con, "raw", n = 65536)  # Read up to 64KB
+      chunk_raw <- readBin(con, "raw", n = 65536) # Read up to 64KB
       chunk_char <- rawToChar(chunk_raw)
       end_match <- regexpr("</spectrum>", chunk_char, ignore.case = TRUE)
       if (end_match[1] > 0) {
@@ -246,7 +250,7 @@
       batch_xml <- rawToChar(raw_data)
 
       # Parse individual spectra from batch
-      spec_pattern <- '<spectrum(?!List)[^>]*>'
+      spec_pattern <- "<spectrum(?!List)[^>]*>"
       spec_matches <- gregexpr(spec_pattern, batch_xml, ignore.case = TRUE, perl = TRUE)
 
       if (spec_matches[[1]][1] > 0) {
@@ -289,13 +293,15 @@
 #' @return List of integer vectors, each representing a batch
 #' @keywords internal
 .group_consecutive_indices <- function(indices, max_gap = 100) {
-  if (length(indices) == 0) return(list())
+  if (length(indices) == 0) {
+    return(list())
+  }
 
   batches <- list()
   current_batch <- indices[1]
 
   for (i in 2:length(indices)) {
-    if (indices[i] - indices[i-1] <= max_gap) {
+    if (indices[i] - indices[i - 1] <= max_gap) {
       current_batch <- c(current_batch, indices[i])
     } else {
       batches[[length(batches) + 1]] <- current_batch

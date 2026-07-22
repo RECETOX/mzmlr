@@ -13,8 +13,8 @@ test_that("validate_mzml checks required elements", {
   writeLines(c(
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<mzML version="1.1.0" xmlns="http://psi.hupo.org/ms/mzml">',
-    '  <!-- Missing required elements -->',
-    '</mzML>'
+    "  <!-- Missing required elements -->",
+    "</mzML>"
   ), tmp_file)
 
   on.exit(unlink(tmp_file))
@@ -37,7 +37,7 @@ test_that("validate_mzml handles valid basic XML", {
     '  <instrumentConfigurationList count="1"><instrumentConfiguration id="IC1"/></instrumentConfigurationList>',
     '  <dataProcessingList count="1"><dataProcessing id="DP1"/></dataProcessingList>',
     '  <run id="run1"></run>',
-    '</mzML>'
+    "</mzML>"
   ), tmp_file)
 
   on.exit(unlink(tmp_file))
@@ -61,7 +61,7 @@ test_that("validate_mzml extracts version from valid file", {
     '  <instrumentConfigurationList count="1"><instrumentConfiguration id="IC1"/></instrumentConfigurationList>',
     '  <dataProcessingList count="1"><dataProcessing id="DP1"/></dataProcessingList>',
     '  <run id="run1"></run>',
-    '</mzML>'
+    "</mzML>"
   ), tmp_file)
 
   on.exit(unlink(tmp_file))

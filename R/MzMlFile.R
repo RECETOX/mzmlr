@@ -69,7 +69,7 @@ MzMlFile <- function(path, xml_doc = NULL, validate = TRUE, build_index = NULL) 
 
   # Get file size for auto-indexing decision
   file_size <- file.info(actual_path)$size
-  auto_build_index <- is.null(build_index) && file_size > 10 * 1024 * 1024  # 10MB threshold
+  auto_build_index <- is.null(build_index) && file_size > 10 * 1024 * 1024 # 10MB threshold
 
   # Decide whether to build index
   should_build_index <- if (is.null(build_index)) auto_build_index else build_index

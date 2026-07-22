@@ -96,9 +96,11 @@ instr$components
 spec <- get_spectrum(mzml, index = 1)
 
 # Plot the spectrum
-plot(spec$mz, spec$intensity, type = "l",
-     xlab = "m/z", ylab = "Intensity",
-     main = paste("MS Level", spec$ms_level))
+plot(spec$mz, spec$intensity,
+  type = "l",
+  xlab = "m/z", ylab = "Intensity",
+  main = paste("MS Level", spec$ms_level)
+)
 ```
 
 ### Multiple Spectra
@@ -113,8 +115,10 @@ ms1_spectra <- get_spectra(mzml, ms_level = 1)
 # Process each spectrum
 for (i in seq_along(ms1_spectra)) {
   spec <- ms1_spectra[[i]]
-  cat(sprintf("Spectrum %d: %d peaks, TIC = %.2f\n",
-              i, length(spec$mz), spec$total_ion_current))
+  cat(sprintf(
+    "Spectrum %d: %d peaks, TIC = %.2f\n",
+    i, length(spec$mz), spec$total_ion_current
+  ))
 }
 ```
 
@@ -127,9 +131,11 @@ chromatograms <- get_chromatograms(mzml)
 # Plot if available
 if (length(chromatograms) > 0) {
   chrom <- chromatograms[[1]]
-  plot(chrom$time, chrom$intensity, type = "l",
-       xlab = "Time", ylab = "Intensity",
-       main = chrom$chromatogram_type)
+  plot(chrom$time, chrom$intensity,
+    type = "l",
+    xlab = "Time", ylab = "Intensity",
+    main = chrom$chromatogram_type
+  )
 }
 ```
 
@@ -178,11 +184,14 @@ summary(spec$intensity)
 The package provides informative error messages:
 
 ```{r error-handling, eval = FALSE}
-tryCatch({
-  mzml <- read_mzml("nonexistent.mzML")
-}, error = function(e) {
-  cat("Error:", conditionMessage(e), "\n")
-})
+tryCatch(
+  {
+    mzml <- read_mzml("nonexistent.mzML")
+  },
+  error = function(e) {
+    cat("Error:", conditionMessage(e), "\n")
+  }
+)
 ```
 
 ## Advanced Features
@@ -192,7 +201,8 @@ tryCatch({
 ```{r custom-schema, eval = FALSE}
 # Use a custom XSD schema for validation
 result <- validate_mzml("file.mzML",
-                        schema_path = "path/to/custom.xsd")
+  schema_path = "path/to/custom.xsd"
+)
 ```
 
 ### Disabling Validation
@@ -207,4 +217,4 @@ mzml <- read_mzml("file.mzML", validate = FALSE)
 
 - [HUPO-PSI mzML specification](https://www.psidev.info/mzml)
 - [mzML GitHub repository](https://github.com/HUPO-PSI/mzML)
-- [mzR package](https://cran.r-project.org/package=mzR)
+- [mzR package](https://rdrr.io/cran/mzR/)

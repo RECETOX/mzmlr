@@ -111,9 +111,9 @@ get_spectrum <- function(mzml, index, ms_level = NULL,
 #' @return Spectrum data list
 #' @keywords internal
 .get_spectrum_from_index <- function(file_path, index, spectrum_idx,
-                                      ms_level = NULL,
-                                      intensity_precision = 0,
-                                      time_precision = 2) {
+                                     ms_level = NULL,
+                                     intensity_precision = 0,
+                                     time_precision = 2) {
   if (spectrum_idx < 1 || spectrum_idx > index$n_spectra) {
     cli::cli_abort("Spectrum index {spectrum_idx} out of range (1-{index$n_spectra})")
   }
@@ -315,15 +315,21 @@ get_spectrum <- function(mzml, index, ms_level = NULL,
   }
 
   if (compress) {
-    raw_data <- tryCatch({
-      memDecompress(as.raw(raw_data), type = "gzip")
-    }, error = function(e) {
-      tryCatch({
-        memDecompress(as.raw(raw_data), type = "deflate")
-      }, error = function(e2) {
-        raw_data
-      })
-    })
+    raw_data <- tryCatch(
+      {
+        memDecompress(as.raw(raw_data), type = "gzip")
+      },
+      error = function(e) {
+        tryCatch(
+          {
+            memDecompress(as.raw(raw_data), type = "deflate")
+          },
+          error = function(e2) {
+            raw_data
+          }
+        )
+      }
+    )
   }
 
   if (is_double) {
@@ -455,8 +461,9 @@ get_spectra <- function(mzml, indices = NULL, ms_level = NULL,
 
   result <- lapply(indices, function(i) {
     get_spectrum(mzml, i,
-                 intensity_precision = intensity_precision,
-                 time_precision = time_precision)
+      intensity_precision = intensity_precision,
+      time_precision = time_precision
+    )
   })
 
   result
@@ -477,10 +484,10 @@ get_spectra <- function(mzml, indices = NULL, ms_level = NULL,
 #' @return List of spectrum data
 #' @keywords internal
 .get_spectra_from_index <- function(file_path, index, indices = NULL,
-                                     ms_level = NULL,
-                                     intensity_precision = 0,
-                                     time_precision = 2,
-                                     batch_size = 100) {
+                                    ms_level = NULL,
+                                    intensity_precision = 0,
+                                    time_precision = 2,
+                                    batch_size = 100) {
   n_spectra <- index$n_spectra
 
   # Determine which indices to read
@@ -531,9 +538,11 @@ get_spectra <- function(mzml, indices = NULL, ms_level = NULL,
 #' @return List of spectrum data
 #' @keywords internal
 .read_spectra_batched <- function(file_path, index, indices,
-                                   intensity_precision, time_precision,
-                                   batch_size) {
-  if (length(indices) == 0) return(list())
+                                  intensity_precision, time_precision,
+                                  batch_size) {
+  if (length(indices) == 0) {
+    return(list())
+  }
 
   # Sort indices for consistent ordering
   sorted_indices <- sort(unique(indices))
@@ -553,4 +562,3 @@ get_spectra <- function(mzml, indices = NULL, ms_level = NULL,
 
   result
 }
-
