@@ -4,10 +4,15 @@
 #' storing parsed XML data and metadata for efficient access to spectra and
 #' chromatograms. Supports both local file paths and URLs.
 #'
+#' When reading large files, the package can build an index of spectrum positions
+#' to enable memory-efficient random access without loading the entire XML into memory.
+#'
 #' @param path Character string giving the path to the mzML file or a URL
 #'   (http://, https://, ftp://)
 #' @param xml_doc Parsed XML document (optional, for internal use)
 #' @param validate Logical indicating whether to validate against XSD schema
+#' @param build_index Logical; if TRUE, build a spectrum position index for
+#'   memory-efficient access (default TRUE for files > 10MB)
 #' @return An object of class "MzMlFile" with an additional `temp_file` component
 #'   if the input was a URL (for cleanup purposes)
 #'
@@ -19,12 +24,15 @@
 #' # From URL
 #' mzml <- MzMlFile("https://example.com/data/file.mzML")
 #'
+#' # Build index for large file
+#' mzml <- MzMlFile("large_file.mzML", build_index = TRUE)
+#'
 #' # Clean up temporary file after use
 #' unlink(mzml$temp_file)
 #' }
 #'
 #' @export
-MzMlFile <- function(path, xml_doc = NULL, validate = TRUE) {
+MzMlFile <- function(path, xml_doc = NULL, validate = TRUE, build_index = NULL) {
   # Check if path is a URL
   is_url <- grepl("^(https?|ftp)://", path, ignore.case = TRUE)
 
@@ -59,9 +67,30 @@ MzMlFile <- function(path, xml_doc = NULL, validate = TRUE) {
     cli::cli_warn("File does not have .mzML extension: {.file {actual_path}}")
   }
 
-  # Parse XML document
-  if (is.null(xml_doc)) {
+  # Get file size for auto-indexing decision
+  file_size <- file.info(actual_path)$size
+  auto_build_index <- is.null(build_index) && file_size > 10 * 1024 * 1024  # 10MB threshold
+
+  # Decide whether to build index
+  should_build_index <- if (is.null(build_index)) auto_build_index else build_index
+
+  # Parse XML document using xml2 (only if not building index-only mode)
+  xml_doc <- NULL
+  version <- NA_character_
+  id <- NA_character_
+
+  if (!should_build_index || !is_url) {
+    # For local files or when index shouldn't replace XML, parse XML
     xml_doc <- .read_xml(actual_path, encoding = "UTF-8")
+
+    # Extract basic metadata using xml2
+    root <- .xml_root(xml_doc)
+    version <- .xml_attr(root, "version")
+    id <- .xml_attr(root, "id")
+
+    # Clean up NA values
+    if (is.null(version) || is.na(version) || version == "") version <- NA_character_
+    if (is.null(id) || is.na(id) || id == "") id <- NA_character_
   }
 
   # Validate against schema if requested
@@ -72,24 +101,12 @@ MzMlFile <- function(path, xml_doc = NULL, validate = TRUE) {
     }
   }
 
-  # Extract basic metadata - handle both xml2 and base R parsing
-  version <- NA_character_
-  id <- NA_character_
-
-  if (inherits(xml_doc, "xml_document")) {
-    # xml2 package
-    root <- xml2::xml_root(xml_doc)
-    version <- xml2::xml_attr(root, "version")
-    id <- xml2::xml_attr(root, "id")
-  } else if (inherits(xml_doc, "mzml_xml_base") && !is.null(xml_doc$root)) {
-    # Base R fallback
-    version <- xml_doc$root[["version"]]
-    id <- xml_doc$root[["id"]]
+  # Build spectrum index if requested
+  # For URL downloads, the temp file exists during the session so we can build the index
+  spectrum_index <- NULL
+  if (should_build_index) {
+    spectrum_index <- .build_spectrum_index(actual_path)
   }
-
-  # Clean up NA values
-  if (is.null(version) || is.na(version) || version == "") version <- NA_character_
-  if (is.null(id) || is.na(id) || id == "") id <- NA_character_
 
   # Create and return object
   result <- structure(
@@ -98,10 +115,12 @@ MzMlFile <- function(path, xml_doc = NULL, validate = TRUE) {
       original_path = path,
       temp_file = temp_file,
       xml = xml_doc,
+      spectrum_index = spectrum_index,
       version = version,
       id = id,
       validated = validate,
-      is_url = is_url
+      is_url = is_url,
+      file_size = file_size
     ),
     class = "MzMlFile"
   )
@@ -139,18 +158,21 @@ print.MzMlFile <- function(x, ...) {
     cat("  ID: ", x$id, "\n", sep = "")
   }
 
-  # Get counts without full parsing
-  content <- x$xml$content
-  if (is.character(content) && length(content) == 1 && nchar(content) > 0) {
-    sl_pattern <- '<spectrumList[^>]*count=\"([^\"]+)\"'
-    sl_pos <- regexec(sl_pattern, content, ignore.case = TRUE, perl = TRUE)[[1]]
-    if (sl_pos[1] > 0) {
-      sl_match <- regmatches(content, list(sl_pos))[[1]]
-      if (length(sl_match) >= 2 && nchar(sl_match[2]) > 0) {
-        cat("  Spectra: ", sl_match[2], "\n", sep = "")
+  # Report spectrum count
+  if (!is.null(x$spectrum_index)) {
+    cat("  Spectra: ", x$spectrum_index$n_spectra, " (indexed)", "\n", sep = "")
+  } else if (!is.null(x$xml)) {
+    root <- .xml_root(x$xml)
+    sl_node <- .xml_find_first_by_name(root, "spectrumList")
+    if (length(sl_node) > 0) {
+      count_attr <- .xml_attr(sl_node, "count")
+      if (!is.na(count_attr) && count_attr != "") {
+        cat("  Spectra: ", count_attr, "\n", sep = "")
       }
     }
   }
+
+  cat("  File size: ", format(x$file_size, big.mark = ","), " bytes\n", sep = "")
 
   cat("\n")
 }

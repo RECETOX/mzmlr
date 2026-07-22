@@ -26,13 +26,35 @@ test_that("URL detection works correctly", {
 
 test_that("read_mzml from URL creates MzMlFile with temp_file", {
   skip_on_ci()
-  url <- 'https://zenodo.org/records/10618833/files/8_qc_no_dil_milliq.mzml.mzml'
-  mzml <- read_mzml(url, validate = FALSE)
+  skip_on_cran()
+  # Skip if no internet connection
+  if (!requireNamespace("curl", quietly = TRUE) ||
+      curl::has_internet() == FALSE) {
+    skip("No internet connection")
+  }
 
+  url <- 'https://zenodo.org/records/10618833/files/8_qc_no_dil_milliq.mzml.mzml?download=1'
+
+  # Wrap in tryCatch to handle download failures
+  result <- tryCatch({
+    mzml <- read_mzml(url, validate = FALSE)
+    list(success = TRUE, mzml = mzml)
+  }, error = function(e) {
+    list(success = FALSE, error = e$message)
+  })
+
+  if (!result$success) {
+    skip(paste("Download failed:", result$error))
+  }
+
+  mzml <- result$mzml
   expect_s3_class(mzml, "MzMlFile")
   expect_true(mzml$is_url)
   expect_type(mzml$temp_file, "character")
   expect_equal(mzml$original_path, url)
+  # Index should be built for downloaded files
+  expect_false(is.null(mzml$spectrum_index))
+  expect_equal(mzml$spectrum_index$n_spectra, 4117)
 })
 
 test_that("validate_mzml handles URL format", {

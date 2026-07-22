@@ -1,0 +1,23 @@
+name: mzmlr-dev
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  # R base
+  - r-base >=4.3
+
+  # Core dependencies (Imports)
+  - r-rlang
+  - r-cli
+  - r-xml2
+
+  # Development and testing (Suggests)
+  - r-devtools
+  - r-testthat >=3.0.0
+  - r-knitr
+  - r-rmarkdown
+  - r-roxygen2
+  - r-base64enc
+  - r-openssl

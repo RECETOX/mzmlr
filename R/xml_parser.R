@@ -1,100 +1,16 @@
-# Internal XML handling - tries xml2 first, falls back to base R
+# XML parsing using xml2 package
+# This module provides efficient XML parsing for mzML files using xml2.
 
-#' Read XML file
+#' Read XML file using xml2
 #'
-#' Internal function to read XML files using xml2 or pure R fallback.
+#' Internal function to read XML files using xml2 package.
 #'
 #' @param path File path
 #' @param encoding Character encoding
-#' @return XML document object or parsed structure
+#' @return XML document object
 #' @keywords internal
 .read_xml <- function(path, encoding = "UTF-8") {
-  # Try xml2 first
-  if (requireNamespace("xml2", quietly = TRUE)) {
-    return(xml2::read_xml(path, encoding = encoding))
-  }
-
-  # Fall back to base R XML parsing
-  .parse_xml_base(path)
-}
-
-#' Parse XML using base R
-#'
-#' Internal function for parsing XML without external dependencies.
-#'
-#' @param path File path
-#' @return Parsed XML structure with class "mzml_xml_base"
-#' @keywords internal
-.parse_xml_base <- function(path) {
-  # Read file content
-  content <- readLines(path, warn = FALSE, encoding = "UTF-8")
-  content <- paste(content, collapse = "\n")
-
-  # Create simple XML tree structure
-  xml_tree <- list(
-    content = content,
-    path = path,
-    root = NULL
-  )
-  class(xml_tree) <- "mzml_xml_base"
-
-  # Extract root element info
-  root_match <- regmatches(content, regexpr('<mzML[^>]*>', content, ignore.case = TRUE))
-  if (length(root_match) > 0 && nchar(root_match[1]) > 0) {
-    xml_tree$root <- .parse_attributes(root_match[1])
-  }
-
-  xml_tree
-}
-
-#' Parse attributes from an XML tag
-#'
-#' Internal helper to extract attributes from an XML tag string.
-#'
-#' @param tag XML tag string
-#' @return Named list of attributes
-#' @keywords internal
-.parse_attributes <- function(tag) {
-  attrs <- list()
-
-  # Match name="value" patterns
-  attr_pattern <- '([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*"([^"]*)"'
-  matches <- gregexpr(attr_pattern, tag, ignore.case = TRUE, perl = TRUE)
-
-  if (matches[[1]][1] != -1) {
-    # Use regmatches with capture groups
-    all_matches <- regmatches(tag, matches)[[1]]
-
-    for (attr_str in all_matches) {
-      # Extract name and value using sub
-      name <- sub('^"|"$', '', sub('.*?([a-zA-Z_][a-zA-Z0-9_]*)\\s*=.*', '\\1', attr_str))
-      value <- sub('.*=\\s*"([^"]*)".*', '\\1', attr_str)
-
-      if (nchar(name) > 0) {
-        attrs[[name]] <- value
-      }
-    }
-  }
-
-  # Also try single quotes
-  attr_pattern_sq <- "([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*'([^']*)'"
-  matches_sq <- gregexpr(attr_pattern_sq, tag, ignore.case = TRUE, perl = TRUE)
-
-  if (matches_sq[[1]][1] != -1) {
-    all_matches <- regmatches(tag, matches_sq)[[1]]
-
-    for (attr_str in all_matches) {
-      name <- sub('.*=\\s*\'([^\']*)\'.*', '\\1', attr_str)
-      name <- sub('^([a-zA-Z_][a-zA-Z0-9_]*)\\s*=.*', '\\1', name)
-      value <- sub('.*=\\s*\'([^\']*)\'.*', '\\1', attr_str)
-
-      if (nchar(name) > 0 && !exists(name, where = attrs)) {
-        attrs[[name]] <- value
-      }
-    }
-  }
-
-  attrs
+  xml2::read_xml(path, encoding = encoding)
 }
 
 #' Get root element
@@ -105,16 +21,7 @@
 #' @return Root element
 #' @keywords internal
 .xml_root <- function(doc) {
-  if (inherits(doc, "xml_document")) {
-    return(xml2::xml_root(doc))
-  }
-
-  # Base R fallback
-  if (inherits(doc, "mzml_xml_base")) {
-    return(doc)
-  }
-
-  doc
+  xml2::xml_root(doc)
 }
 
 #' Get XML attribute
@@ -126,103 +33,101 @@
 #' @return Attribute value or NA
 #' @keywords internal
 .xml_attr <- function(node, name) {
-  if (inherits(node, "xml_node")) {
-    return(xml2::xml_attr(node, name))
-  }
-
-  if (inherits(node, "mzml_xml_base") && !is.null(node$root)) {
-    val <- node$root[[name]]
-    return(if (is.null(val)) NA_character_ else val)
-  }
-
-  NA_character_
+  val <- xml2::xml_attr(node, name)
+  if (is.na(val) || val == "") NA_character_ else val
 }
 
-#' Find all matching elements
+#' Find all matching elements using local name (namespace-agnostic)
 #'
-#' Internal function to find all elements matching an XPath expression.
+#' Internal function to find all elements by their local name, ignoring namespaces.
+#' This is useful for mzML files which may have various namespace declarations.
 #'
 #' @param doc_or_node XML document or node
-#' @param xpath XPath expression (simplified support)
-#' @param ns Namespace prefix mapping
-#' @return List of matching nodes
+#' @param local_name Local element name (without namespace prefix)
+#' @return xml_nodeset of matching nodes
 #' @keywords internal
-.xml_find_all <- function(doc_or_node, xpath, ns = NULL) {
-  if (inherits(doc_or_node, "xml_nodeset")) {
-    return(xml2::xml_find_all(doc_or_node, xpath, ns = ns))
-  }
-
-  if (inherits(doc_or_node, "xml_node")) {
-    return(xml2::xml_find_all(doc_or_node, xpath, ns = ns))
-  }
-
-  # Base R fallback - simplified xpath support
-  .find_elements_base(doc_or_node$content, xpath)
+.xml_find_by_name <- function(doc_or_node, local_name) {
+  # Use xpath 1.0 with local-name() to ignore namespaces
+  xpath <- sprintf("//*[local-name()='%s']", local_name)
+  xml2::xml_find_all(doc_or_node, xpath)
 }
 
-#' Find first matching element
+#' Find first element using local name (namespace-agnostic)
 #'
-#' Internal function to find the first element matching an XPath expression.
+#' Internal function to find the first element by its local name.
 #'
 #' @param doc_or_node XML document or node
-#' @param xpath XPath expression
-#' @param ns Namespace prefix mapping
-#' @return First matching node or empty result
+#' @param local_name Local element name (without namespace prefix)
+#' @return First matching node or empty nodeset
 #' @keywords internal
-.xml_find_first <- function(doc_or_node, xpath, ns = NULL) {
-  if (inherits(doc_or_node, "xml_nodeset")) {
-    result <- xml2::xml_find_first(doc_or_node, xpath, ns = ns)
-    return(result)
-  }
-
-  if (inherits(doc_or_node, "xml_node")) {
-    result <- xml2::xml_find_first(doc_or_node, xpath, ns = ns)
-    return(result)
-  }
-
-  # Base R fallback
-  all_matches <- .find_elements_base(doc_or_node$content, xpath)
-  if (length(all_matches) == 0) {
-    # Return empty nodeset-like object
-    return(structure(list(), class = "xml_nodeset"))
-  }
-  all_matches[[1]]
+.xml_find_first_by_name <- function(doc_or_node, local_name) {
+  xpath <- sprintf("//*[local-name()='%s'][1]", local_name)
+  xml2::xml_find_first(doc_or_node, xpath)
 }
 
-#' Base R element finder (simplified xpath support)
+#' Find all cvParam elements with optional filters
 #'
-#' Internal function for basic element finding without full XPath support.
+#' Internal helper to find cvParam elements by name or accession.
 #'
-#' @param content XML content
-#' @param xpath XPath expression
-#' @return List of matched element strings
+#' @param parent Parent node to search within
+#' @param name Optional param name to filter by
+#' @param accession Optional accession to filter by
+#' @return xml_nodeset of matching cvParam nodes
 #' @keywords internal
-.find_elements_base <- function(content, xpath) {
-  # Simplified xpath parser for common patterns like ".//ns:element"
-  # Extract element name from xpath
-  elem_pattern <- "(?:\\w+:)?(\\w+)(?:\\[|>|/|$|\\s)"
-  elem_match <- regexec(elem_pattern, xpath, ignore.case = TRUE)
-
-  if (elem_match[[1]][1] == -1) {
-    return(list())
+.xml_find_cvparam <- function(parent, name = NULL, accession = NULL) {
+  conditions <- c()
+  if (!is.null(name)) {
+    conditions <- c(conditions, sprintf('@name="%s"', name))
+  }
+  if (!is.null(accession)) {
+    conditions <- c(conditions, sprintf('@accession="%s"', accession))
   }
 
-  elem_name <- regmatches(xpath, elem_match)[[1]][2]
-  if (is.na(elem_name) || elem_name == "") {
-    return(list())
+  if (length(conditions) > 0) {
+    xpath <- sprintf(".//*[local-name()='cvParam'][%s]", paste(conditions, collapse = " and "))
+  } else {
+    xpath <- ".//*[local-name()='cvParam']"
   }
 
-  # Find all occurrences of this element
-  tag_pattern <- sprintf('<%s[^>]*/?>', elem_name)
-  matches <- gregexpr(tag_pattern, content, ignore.case = TRUE)
+  xml2::xml_find_all(parent, xpath)
+}
 
-  if (matches[[1]][1] == -1) {
-    return(list())
+#' Find all elements by local name path
+#'
+#' Internal function to find elements using a path of local names.
+#' Uses relative paths when searching from a node.
+#'
+#' @param doc_or_node XML document or node
+#' @param path Character vector of element names forming the path
+#' @return xml_nodeset of matching nodes
+#' @keywords internal
+.xml_find_path <- function(doc_or_node, path) {
+  xpath_parts <- sapply(path, function(n) sprintf("*[local-name()='%s']", n))
+  xpath <- paste(xpath_parts, collapse = "/")
+  # Use .// for descendant search from node, or // for document search
+  if (inherits(doc_or_node, "xml_document")) {
+    xpath <- sprintf("//*[local-name()='%s']", xpath_parts[1])
+    for (i in 2:length(xpath_parts)) {
+      xpath <- paste0(xpath, "//*[local-name()='", xpath_parts[i], "']")
+    }
+  } else {
+    xpath <- paste(xpath_parts, collapse = "/")
   }
+  xml2::xml_find_all(doc_or_node, xpath)
+}
 
-  # Return match positions (simplified - just return that we found them)
-  matches_list <- regmatches(content, matches)[[1]]
-  lapply(matches_list, function(x) list(tag = x))
+#' Find first element by local name path
+#'
+#' Internal function to find the first element using a path of local names.
+#'
+#' @param doc_or_node XML document or node
+#' @param path Character vector of element names forming the path
+#' @return First matching node or empty nodeset
+#' @keywords internal
+.xml_find_first_path <- function(doc_or_node, path) {
+  xpath_parts <- sapply(path, function(n) sprintf("*[local-name()='%s']", n))
+  xpath <- paste(xpath_parts, collapse = "/")
+  xml2::xml_find_first(doc_or_node, xpath)
 }
 
 #' Get XML text content
@@ -233,15 +138,8 @@
 #' @return Text content
 #' @keywords internal
 .xml_text <- function(node) {
-  if (inherits(node, "xml_node") || inherits(node, "xml_nodeset")) {
-    return(xml2::xml_text(node))
-  }
-
-  if (is.list(node) && !is.null(node$tag)) {
-    return("")
-  }
-
-  ""
+  txt <- xml2::xml_text(node)
+  if (length(txt) == 0) "" else txt
 }
 
 #' Get XML children
@@ -249,14 +147,10 @@
 #' Internal function to get child nodes of an XML node.
 #'
 #' @param node XML node
-#' @return Child nodes
+#' @return Child nodes as xml_nodeset
 #' @keywords internal
 .xml_children <- function(node) {
-  if (inherits(node, "xml_node")) {
-    return(xml2::xml_children(node))
-  }
-
-  list()
+  xml2::xml_children(node)
 }
 
 #' Get XML node name
@@ -267,17 +161,39 @@
 #' @return Node name
 #' @keywords internal
 .xml_name <- function(node) {
-  if (inherits(node, "xml_node")) {
-    return(xml2::xml_name(node))
+  xml2::xml_name(node)
+}
+
+#' Convert numeric vector to float32 representation
+#'
+#' Converts a double precision vector to float32 for memory efficiency.
+#' R 4.4+ supports storage.mode "float" directly.
+#'
+#' @param x Numeric vector to convert
+#' @return Vector with reduced precision (float32 equivalent)
+#' @keywords internal
+.convert_to_float32 <- function(x) {
+  if (length(x) == 0) return(numeric(0))
+
+  # Try native float support (R 4.4+)
+  if (getRversion() >= "4.4.0") {
+    out <- x
+    storage.mode(out) <- "double"
+    attr(out, "Csingle") <- TRUE
+    return(out)
   }
 
-  if (is.list(node) && !is.null(node$tag)) {
-    # Extract name from tag
-    match <- regexec('<(\\w+)', node$tag)
-    if (match[[1]][1] != -1) {
-      return(regmatches(node$tag, match)[[1]][2])
+  # Fallback: round to ~7 significant digits (float32 precision)
+  # This simulates float32 behavior for typical MS intensity values
+  out <- x
+  # Round to 6-7 significant figures
+  for (i in seq_along(x)) {
+    if (!is.na(x[i]) && x[i] != 0) {
+      sig_digits <- 6
+      magnitude <- floor(log10(abs(x[i])))
+      decimals <- max(0, sig_digits - magnitude - 1)
+      out[i] <- round(x[i], digits = decimals)
     }
   }
-
-  ""
+  out
 }

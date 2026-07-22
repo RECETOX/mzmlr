@@ -1,6 +1,7 @@
 #' Get file information from mzML object
 #'
-#' Extracts metadata and summary information from an mzML file.
+#' Extracts metadata and summary information from an mzML file using xml2-based
+#' parsing for efficiency.
 #'
 #' @param mzml Object of class [MzMlFile()]
 #'
@@ -33,100 +34,85 @@ get_file_info <- function(mzml) {
   }
 
   root <- .xml_root(mzml$xml)
-  ns <- "ns"
-
-  # Read content for regex-based extraction
-  content <- .get_xml_content(mzml$xml)
-
-  # Helper function for safe regex matching
-  safe_regexec <- function(pattern, text) {
-    result <- regexec(pattern, text, ignore.case = TRUE, perl = TRUE)
-    if (length(result) == 0 || length(result[[1]]) == 0) return(character(0))
-    pos <- result[[1]]
-    if (length(pos) > 0 && pos[1] > 0) {
-      return(regmatches(text, result)[[1]])
-    }
-    character(0)
-  }
 
   # File content (types of data present)
   file_content <- list()
-  fc_pattern <- '<fileContent[^>]*>(.*?)</fileContent>'
-  fc_match <- safe_regexec(fc_pattern, content)
-  if (length(fc_match) >= 2) {
-    fc_content <- fc_match[2]
-    # Extract cvParam entries
-    param_pattern <- '<cvParam[^>]*accession=\"([^\"]+)\"[^>]*name=\"([^\"]+)\"'
-    params <- gregexpr(param_pattern, fc_content, ignore.case = TRUE, perl = TRUE)
-    if (length(params) > 0 && length(params[[1]]) > 0 && params[[1]][1] != -1) {
-      matches <- regmatches(fc_content, params)[[1]]
-      for (m in matches) {
-        acc_match <- safe_regexec('accession="([^"]+)"', m)
-        name_match <- safe_regexec('name="([^"]+)"', m)
-        if (length(acc_match) >= 2 && length(name_match) >= 2) {
-          file_content[[name_match[2]]] <- acc_match[2]
-        }
+  fc_node <- .xml_find_first_by_name(root, "fileContent")
+  if (length(fc_node) > 0) {
+    cv_params <- .xml_find_cvparam(fc_node)
+    for (param in cv_params) {
+      name <- .xml_attr(param, "name")
+      accession <- .xml_attr(param, "accession")
+      if (!is.na(name) && !is.na(accession)) {
+        file_content[[name]] <- accession
       }
     }
   }
 
   # Source files
   source_files <- list()
-  sf_pattern <- '<sourceFile[^>]*id=\"([^\"]+)\"[^>]*name=\"([^\"]+)\"[^>]*location=\"([^\"]+)\"'
-  sf_matches <- gregexpr(sf_pattern, content, ignore.case = TRUE, perl = TRUE)
-  if (length(sf_matches) > 0 && length(sf_matches[[1]]) > 0 && sf_matches[[1]][1] != -1) {
-    for (m in regmatches(content, sf_matches)[[1]]) {
-      id_match <- safe_regexec('id="([^"]+)"', m)
-      name_match <- safe_regexec('name="([^"]+)"', m)
-      loc_match <- safe_regexec('location="([^"]+)"', m)
-      source_files[[length(source_files) + 1]] <- list(
-        id = if (length(id_match) >= 2) id_match[2] else NA_character_,
-        name = if (length(name_match) >= 2) name_match[2] else NA_character_,
-        location = if (length(loc_match) >= 2) loc_match[2] else NA_character_
-      )
+  sf_nodes <- .xml_find_by_name(root, "sourceFile")
+  for (sf in sf_nodes) {
+    id <- .xml_attr(sf, "id")
+    name <- .xml_attr(sf, "name")
+    location <- .xml_attr(sf, "location")
+
+    # Get checksum if available
+    checksum_param <- .xml_find_cvparam(sf, name = "local checksum")
+    checksum <- NA_character_
+    if (length(checksum_param) > 0) {
+      checksum <- .xml_attr(checksum_param[[1]], "value")
     }
+
+    source_files[[length(source_files) + 1]] <- list(
+      id = if (!is.na(id)) id else NA_character_,
+      name = if (!is.na(name)) name else NA_character_,
+      location = if (!is.na(location)) location else NA_character_,
+      checksum = checksum
+    )
   }
 
   # Software list
   software <- list()
-  sw_pattern <- '<software[^>]*id=\"([^\"]+)\"[^>]*version=\"([^\"]+)\"'
-  sw_matches <- gregexpr(sw_pattern, content, ignore.case = TRUE, perl = TRUE)
-  if (length(sw_matches) > 0 && length(sw_matches[[1]]) > 0 && sw_matches[[1]][1] != -1) {
-    for (m in regmatches(content, sw_matches)[[1]]) {
-      id_match <- safe_regexec('id="([^"]+)"', m)
-      ver_match <- safe_regexec('version="([^"]+)"', m)
-      software[[length(software) + 1]] <- list(
-        id = if (length(id_match) >= 2) id_match[2] else NA_character_,
-        version = if (length(ver_match) >= 2) ver_match[2] else NA_character_
-      )
-    }
+  sw_nodes <- .xml_find_by_name(root, "software")
+  for (sw in sw_nodes) {
+    id <- .xml_attr(sw, "id")
+    version <- .xml_attr(sw, "version")
+
+    software[[length(software) + 1]] <- list(
+      id = if (!is.na(id)) id else NA_character_,
+      version = if (!is.na(version)) version else NA_character_
+    )
   }
 
   # Run information
-  run_pattern <- '<run[^>]*id=\"([^\"]+)\"[^>]*startTimeStamp=\"([^\"]+)\"'
-  run_match <- safe_regexec(run_pattern, content)
-
-  spectrum_count <- NA_integer_
-  start_time <- NA_character_
+  run_node <- .xml_find_first_by_name(root, "run")
   run_id <- NA_character_
+  start_time <- NA_character_
 
-  if (length(run_match) >= 3) {
-    run_id <- run_match[2]
-    start_time <- run_match[3]
+  if (length(run_node) > 0) {
+    run_id <- .xml_attr(run_node, "id")
+    start_time <- .xml_attr(run_node, "startTimeStamp")
   }
 
   # Get spectrum count from spectrumList
-  sl_pattern <- '<spectrumList[^>]*count=\"([^\"]+)\"'
-  sl_match <- safe_regexec(sl_pattern, content)
-  if (length(sl_match) >= 2 && nchar(sl_match[2]) > 0) {
-    spectrum_count <- as.integer(sl_match[2])
+  spectrum_count <- NA_integer_
+  sl_node <- .xml_find_first_by_name(root, "spectrumList")
+  if (length(sl_node) > 0) {
+    count_str <- .xml_attr(sl_node, "count")
+    if (!is.na(count_str) && count_str != "") {
+      spectrum_count <- as.integer(count_str)
+    }
   }
 
+  # Get chromatogram count
   chromatogram_count <- NA_integer_
-  chrom_pattern <- '<chromatogramList[^>]*count=\"([^\"]+)\"'
-  chrom_match <- safe_regexec(chrom_pattern, content)
-  if (length(chrom_match) >= 2 && nchar(chrom_match[2]) > 0) {
-    chromatogram_count <- as.integer(chrom_match[2])
+  cl_node <- .xml_find_first_by_name(root, "chromatogramList")
+  if (length(cl_node) > 0) {
+    count_str <- .xml_attr(cl_node, "count")
+    if (!is.na(count_str) && count_str != "") {
+      chromatogram_count <- as.integer(count_str)
+    }
   }
 
   # Get unique MS levels
@@ -173,18 +159,7 @@ get_instrument_info <- function(mzml) {
     cli::cli_abort("{.arg mzml} must be an MzMlFile object")
   }
 
-  content <- .get_xml_content(mzml$xml)
-
-  # Helper function for safe regex matching
-  safe_regexec <- function(pattern, text) {
-    result <- regexec(pattern, text, ignore.case = TRUE, perl = TRUE)
-    if (length(result) == 0 || length(result[[1]]) == 0) return(character(0))
-    pos <- result[[1]]
-    if (length(pos) > 0 && pos[1] > 0) {
-      return(regmatches(text, result)[[1]])
-    }
-    character(0)
-  }
+  root <- .xml_root(mzml$xml)
 
   result <- list(
     instrument_id = NA_character_,
@@ -194,33 +169,34 @@ get_instrument_info <- function(mzml) {
   )
 
   # Find instrument configuration ID
-  instr_pattern <- '<instrumentConfiguration[^>]*id=\"([^\"]+)\"'
-  instr_match <- safe_regexec(instr_pattern, content)
-  if (length(instr_match) >= 2) {
-    result$instrument_id <- instr_match[2]
+  instr_node <- .xml_find_first_by_name(root, "instrumentConfiguration")
+  if (length(instr_node) > 0) {
+    result$instrument_id <- .xml_attr(instr_node, "id")
   }
 
   # Find serial number
-  serial_pattern <- 'name=\"instrument serial number\"[^>]*value=\"([^\"]+)\"'
-  serial_match <- safe_regexec(serial_pattern, content)
-  if (length(serial_match) >= 2) {
-    result$serial_number <- serial_match[2]
+  serial_param <- .xml_find_cvparam(root, name = "instrument serial number")
+  if (length(serial_param) > 0) {
+    result$serial_number <- .xml_attr(serial_param[[1]], "value")
+  }
+
+  # Find manufacturer
+  manufacturer_param <- .xml_find_cvparam(root, name = "manufacturer")
+  if (length(manufacturer_param) > 0) {
+    result$manufacturer <- .xml_attr(manufacturer_param[[1]], "value")
   }
 
   # Find components
   comp_types <- c("source", "analyzer", "detector")
   for (comp_type in comp_types) {
-    comp_pattern <- sprintf('<%s[^>]*/?>|<%s[^>]*>', comp_type, comp_type)
-    comp_matches <- gregexpr(comp_pattern, content, ignore.case = TRUE)
-    if (length(comp_matches) > 0 && length(comp_matches[[1]]) > 0 && comp_matches[[1]][1] != -1) {
-      for (comp_tag in regmatches(content, comp_matches)[[1]]) {
-        order_match <- safe_regexec('order="([^"]+)"', comp_tag)
-        result$components[[length(result$components) + 1]] <- list(
-          type = comp_type,
-          order = if (length(order_match) >= 2) order_match[2] else NA_character_,
-          name = NA_character_
-        )
-      }
+    comp_nodes <- .xml_find_by_name(root, comp_type)
+    for (comp in comp_nodes) {
+      order_attr <- .xml_attr(comp, "order")
+      result$components[[length(result$components) + 1]] <- list(
+        type = comp_type,
+        order = if (!is.na(order_attr)) order_attr else NA_character_,
+        name = NA_character_
+      )
     }
   }
 
@@ -248,35 +224,19 @@ get_ms_levels <- function(mzml) {
     cli::cli_abort("{.arg mzml} must be an MzMlFile object")
   }
 
-  content <- .get_xml_content(mzml$xml)
-
-  # Helper function for safe regex matching
-  safe_regexec <- function(pattern, text) {
-    result <- regexec(pattern, text, ignore.case = TRUE, perl = TRUE)
-    if (length(result) == 0 || length(result[[1]]) == 0) return(character(0))
-    pos <- result[[1]]
-    if (length(pos) > 0 && pos[1] > 0) {
-      return(regmatches(text, result)[[1]])
-    }
-    character(0)
-  }
+  root <- .xml_root(mzml$xml)
 
   # Find all MS level cvParams (accession="MS:1000511")
-  pattern <- 'accession=\"MS:1000511\"[^>]*value=\"([^\"]+)\"'
-  matches <- gregexpr(pattern, content, ignore.case = TRUE, perl = TRUE)
+  ms_params <- .xml_find_cvparam(root, accession = "MS:1000511")
 
-  if (length(matches) == 0 || length(matches[[1]]) == 0 || matches[[1]][1] == -1) {
+  if (length(ms_params) == 0) {
     return(integer(0))
   }
 
-  if (length(matches[[1]]) == 0) {
-    return(integer(0))
-  }
-  level_matches <- regmatches(content, matches)[[1]]
-  levels <- sapply(level_matches, function(x) {
-    val_match <- safe_regexec('value="([^"]+)"', x)
-    if (length(val_match) >= 2) {
-      as.integer(val_match[2])
+  levels <- sapply(ms_params, function(p) {
+    val <- .xml_attr(p, "value")
+    if (!is.na(val) && val != "") {
+      as.integer(val)
     } else {
       NA_integer_
     }

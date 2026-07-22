@@ -16,15 +16,8 @@
 #'   }
 #'
 #' @details
-#' The function performs two levels of validation:
-#' \enumerate{
-#'   \item XML parsing to check well-formedness
-#'   \item Schema validation using the RcppXSD package or fallback validation
-#' }
-#'
-#' For schema validation, if the \code{xml2} package supports it, full XSD
-#' validation is performed. Otherwise, a structural validation is done by
-#' checking required elements and attributes are present.
+#' The function performs structural validation by checking required elements
+#' and attributes are present. Full XSD validation requires additional packages.
 #'
 #' When a URL is provided, the file is downloaded to a temporary location,
 #' validated, and the temporary file is automatically cleaned up.
@@ -81,7 +74,7 @@ validate_mzml <- function(path, schema_path = NULL) {
     ))
   }
 
-  # Try to parse XML first
+  # Try to parse XML first using xml2
   xml_doc <- tryCatch(
     .read_xml(actual_path, encoding = "UTF-8"),
     error = function(e) {
@@ -109,46 +102,42 @@ validate_mzml <- function(path, schema_path = NULL) {
     ))
   }
 
-  # Read file content for structural validation
-  content <- readLines(actual_path, warn = FALSE, encoding = "UTF-8")
-  content <- paste(content, collapse = "\n")
-
-  # Structural validation - check required elements
+  # Structural validation - check required elements using namespace-agnostic finders
   errors <- c()
 
   # Required: cvList
-  if (!grepl("<cvList", content, ignore.case = TRUE)) {
+  if (length(.xml_find_first_by_name(root, "cvList")) == 0) {
     errors <- c(errors, "Missing required 'cvList' element")
   }
 
   # Required: fileDescription
-  if (!grepl("<fileDescription", content, ignore.case = TRUE)) {
+  if (length(.xml_find_first_by_name(root, "fileDescription")) == 0) {
     errors <- c(errors, "Missing required 'fileDescription' element")
   }
 
   # Required: softwareList
-  if (!grepl("<softwareList", content, ignore.case = TRUE)) {
+  if (length(.xml_find_first_by_name(root, "softwareList")) == 0) {
     errors <- c(errors, "Missing required 'softwareList' element")
   }
 
   # Required: instrumentConfigurationList
-  if (!grepl("<instrumentConfigurationList", content, ignore.case = TRUE)) {
+  if (length(.xml_find_first_by_name(root, "instrumentConfigurationList")) == 0) {
     errors <- c(errors, "Missing required 'instrumentConfigurationList' element")
   }
 
   # Required: dataProcessingList
-  if (!grepl("<dataProcessingList", content, ignore.case = TRUE)) {
+  if (length(.xml_find_first_by_name(root, "dataProcessingList")) == 0) {
     errors <- c(errors, "Missing required 'dataProcessingList' element")
   }
 
   # Required: run
-  if (!grepl("<run", content, ignore.case = TRUE)) {
+  if (length(.xml_find_first_by_name(root, "run")) == 0) {
     errors <- c(errors, "Missing required 'run' element")
   }
 
-  # Check for mzML namespace in root element
-  root_match <- regmatches(content, regexpr('<mzML[^>]*>', content, ignore.case = TRUE))
-  if (length(root_match) == 0 || nchar(root_match[1]) == 0) {
+  # Check for mzML root element
+  root_name <- .xml_name(root)
+  if (root_name != "mzML" && !grepl("mzML$", root_name, ignore.case = TRUE)) {
     errors <- c(errors, "Missing or invalid mzML root element")
   }
 
