@@ -10,7 +10,7 @@
 \item{node}{XML node}
 }
 \value{
-Child nodes
+Child nodes as xml_nodeset
 }
 \description{
 Internal function to get child nodes of an XML node.

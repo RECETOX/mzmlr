@@ -13,6 +13,7 @@
 Raw vector
 }
 \description{
-Internal function for base64 decoding when no external packages are available.
+Pure R base64 decoding implementation for when no external packages are available.
+Optimized for large inputs with pre-allocation.
 }
 \keyword{internal}

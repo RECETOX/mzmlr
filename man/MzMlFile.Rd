@@ -4,27 +4,45 @@
 \alias{MzMlFile}
 \title{S3 class for mzML file representation}
 \usage{
-MzMlFile(path, xml_doc = NULL, validate = TRUE)
+MzMlFile(path, xml_doc = NULL, validate = TRUE, build_index = NULL)
 }
 \arguments{
-\item{path}{Character string giving the path to the mzML file}
+\item{path}{Character string giving the path to the mzML file or a URL
+(http://, https://, ftp://)}
 
 \item{xml_doc}{Parsed XML document (optional, for internal use)}
 
 \item{validate}{Logical indicating whether to validate against XSD schema}
+
+\item{build_index}{Logical; if TRUE, build a spectrum position index for
+memory-efficient access (default TRUE for files > 10MB)}
 }
 \value{
-An object of class "MzMlFile"
+An object of class "MzMlFile" with an additional \code{temp_file} component
+if the input was a URL (for cleanup purposes)
 }
 \description{
 The MzMlFile class provides a structured representation of an mzML file,
 storing parsed XML data and metadata for efficient access to spectra and
-chromatograms.
+chromatograms. Supports both local file paths and URLs.
+}
+\details{
+When reading large files, the package can build an index of spectrum positions
+to enable memory-efficient random access without loading the entire XML into memory.
 }
 \examples{
 \dontrun{
+# Local file
 mzml <- MzMlFile("path/to/file.mzML")
-info <- get_file_info(mzml)
+
+# From URL
+mzml <- MzMlFile("https://example.com/data/file.mzML")
+
+# Build index for large file
+mzml <- MzMlFile("large_file.mzML", build_index = TRUE)
+
+# Clean up temporary file after use
+unlink(mzml$temp_file)
 }
 
 }

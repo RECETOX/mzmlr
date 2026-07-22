@@ -4,7 +4,14 @@
 \alias{get_spectra}
 \title{Get multiple spectra from mzML file}
 \usage{
-get_spectra(mzml, indices = NULL, ms_level = NULL)
+get_spectra(
+  mzml,
+  indices = NULL,
+  ms_level = NULL,
+  intensity_precision = 0,
+  time_precision = 2,
+  batch_size = 100
+)
 }
 \arguments{
 \item{mzml}{Object of class \code{\link[=MzMlFile]{MzMlFile()}}}
@@ -13,6 +20,15 @@ get_spectra(mzml, indices = NULL, ms_level = NULL)
 If NULL, extracts all spectra.}
 
 \item{ms_level}{Optional integer MS level to filter by.}
+
+\item{intensity_precision}{Numeric; significant digits for intensity values.
+Default 0 means use float32 conversion. Set to NULL to keep full precision.}
+
+\item{time_precision}{Numeric; decimal places for scan time values (default 2).}
+
+\item{batch_size}{Integer; when reading all spectra, process in batches of this
+size to balance memory usage and I/O efficiency (default 100). Only used when
+an index is available.}
 }
 \value{
 A list of lists, where each inner list has the same structure as
@@ -21,6 +37,8 @@ spectra one at a time to avoid memory issues.
 }
 \description{
 Extracts m/z and intensity data from multiple or all spectra.
+Uses memory-efficient processing with optional float32 conversion for intensities.
+When an index is available, spectra are read in batches from disk.
 }
 \examples{
 \dontrun{
@@ -31,6 +49,12 @@ specs <- get_spectra(mzml, indices = 1:10)
 
 # Get all MS1 spectra
 ms1_specs <- get_spectra(mzml, ms_level = 1)
+
+# Get all spectra in batches of 500
+all_specs <- get_spectra(mzml, batch_size = 500)
+
+# Get spectra without precision reduction
+specs_full <- get_spectra(mzml, intensity_precision = NULL)
 }
 
 }

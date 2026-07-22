@@ -2,7 +2,7 @@
 % Please edit documentation in R/xml_parser.R
 \name{.read_xml}
 \alias{.read_xml}
-\title{Read XML file}
+\title{Read XML file using xml2}
 \usage{
 .read_xml(path, encoding = "UTF-8")
 }
@@ -12,9 +12,9 @@
 \item{encoding}{Character encoding}
 }
 \value{
-XML document object or parsed structure
+XML document object
 }
 \description{
-Internal function to read XML files using xml2 or pure R fallback.
+Internal function to read XML files using xml2 package.
 }
 \keyword{internal}

@@ -4,7 +4,13 @@
 \alias{get_spectrum}
 \title{Get spectrum data from mzML file}
 \usage{
-get_spectrum(mzml, index, ms_level = NULL)
+get_spectrum(
+  mzml,
+  index,
+  ms_level = NULL,
+  intensity_precision = 0,
+  time_precision = 2
+)
 }
 \arguments{
 \item{mzml}{Object of class \code{\link[=MzMlFile]{MzMlFile()}}}
@@ -12,12 +18,18 @@ get_spectrum(mzml, index, ms_level = NULL)
 \item{index}{Integer spectrum index (1-based)}
 
 \item{ms_level}{Optional integer MS level to filter by (e.g., 1 for MS1)}
+
+\item{intensity_precision}{Numeric; significant digits for intensity values.
+Default 0 means use float32 conversion. Set to NULL to keep full precision.}
+
+\item{time_precision}{Numeric; decimal places for scan time values (default 2).
+Set to NULL to keep full precision.}
 }
 \value{
 A list containing:
 \describe{
 \item{mz}{Numeric vector of m/z values}
-\item{intensity}{Numeric vector of intensity values}
+\item{intensity}{Numeric vector of intensity values (float32 precision by default)}
 \item{id}{Spectrum identifier}
 \item{ms_level}{MS level of the spectrum}
 \item{scan_time}{Scan start time in minutes}
@@ -28,17 +40,29 @@ A list containing:
 }
 \description{
 Extracts m/z and intensity values from a single spectrum.
+Uses xml2-based parsing for efficiency. Intensity values are converted
+to float32 precision by default for memory efficiency.
 }
 \details{
+When the mzML file has an index (built automatically for files >10MB),
+this function reads only the requested spectrum from disk without loading
+the entire XML into memory.
+
 Binary data arrays in mzML are typically zlib-compressed and base64-encoded.
 This function handles the decoding automatically. The function returns
 uncompressed numeric vectors ready for analysis.
+
+Intensity values are converted to float32 precision by default, which reduces
+memory usage by 50\% while maintaining ~7 significant digits of precision.
 }
 \examples{
 \dontrun{
 mzml <- read_mzml("path/to/file.mzML")
 spec <- get_spectrum(mzml, 1)
 plot(spec$mz, spec$intensity, type = "l")
+
+# Get spectrum with full precision
+spec_full <- get_spectrum(mzml, 1, intensity_precision = NULL)
 }
 
 }

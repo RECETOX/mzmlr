@@ -25,7 +25,8 @@ A list containing:
 }
 }
 \description{
-Extracts metadata and summary information from an mzML file.
+Extracts metadata and summary information from an mzML file using xml2-based
+parsing for efficiency.
 }
 \examples{
 \dontrun{

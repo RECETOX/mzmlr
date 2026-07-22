@@ -4,12 +4,15 @@
 \alias{get_chromatogram}
 \title{Get chromatogram data from mzML file}
 \usage{
-get_chromatogram(mzml, index)
+get_chromatogram(mzml, index, time_precision = 2)
 }
 \arguments{
 \item{mzml}{Object of class \code{\link[=MzMlFile]{MzMlFile()}}}
 
 \item{index}{Integer chromatogram index (1-based)}
+
+\item{time_precision}{Numeric; decimal places for time values (default 2).
+Set to NULL to keep full precision.}
 }
 \value{
 A list containing:
@@ -23,6 +26,11 @@ A list containing:
 }
 \description{
 Extracts time/intensity or other chromatographic data from a single chromatogram.
+Uses xml2-based parsing for efficiency.
+}
+\details{
+Binary data arrays in mzML are typically zlib-compressed and base64-encoded.
+This function handles the decoding automatically.
 }
 \examples{
 \dontrun{

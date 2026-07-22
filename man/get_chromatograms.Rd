@@ -4,13 +4,15 @@
 \alias{get_chromatograms}
 \title{Get multiple chromatograms from mzML file}
 \usage{
-get_chromatograms(mzml, indices = NULL)
+get_chromatograms(mzml, indices = NULL, time_precision = 2)
 }
 \arguments{
 \item{mzml}{Object of class \code{\link[=MzMlFile]{MzMlFile()}}}
 
 \item{indices}{Integer vector of chromatogram indices to extract (1-based).
 If NULL, extracts all chromatograms.}
+
+\item{time_precision}{Numeric; decimal places for time values (default 2).}
 }
 \value{
 A list of lists, where each inner list has the same structure as

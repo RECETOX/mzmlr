@@ -7,7 +7,8 @@
 validate_mzml(path, schema_path = NULL)
 }
 \arguments{
-\item{path}{Character string giving the path to the mzML file}
+\item{path}{Character string giving the path to the mzML file or a URL
+(http://, https://, ftp://)}
 
 \item{schema_path}{Optional path to custom XSD schema. If NULL, uses
 the bundled mzML1.1.1.xsd schema.}
@@ -23,21 +24,23 @@ A list with components:
 \description{
 Validates an mzML file against the official HUPO-PSI mzML XSD schema.
 This function checks both XML well-formedness and schema conformance.
+Supports both local file paths and URLs.
 }
 \details{
-The function performs two levels of validation:
-\enumerate{
-\item XML parsing to check well-formedness
-\item Schema validation using the RcppXSD package or fallback validation
-}
+The function performs structural validation by checking required elements
+and attributes are present. Full XSD validation requires additional packages.
 
-For schema validation, if the \code{xml2} package supports it, full XSD
-validation is performed. Otherwise, a structural validation is done by
-checking required elements and attributes are present.
+When a URL is provided, the file is downloaded to a temporary location,
+validated, and the temporary file is automatically cleaned up.
 }
 \examples{
 \dontrun{
+# Local file
 result <- validate_mzml("path/to/file.mzML")
+
+# From URL
+result <- validate_mzml("https://example.com/data/file.mzML")
+
 if (result$valid) {
   cat("File is valid mzML version", result$version, "\n")
 } else {
