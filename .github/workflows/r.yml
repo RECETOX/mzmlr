@@ -38,17 +38,18 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl libcurl4-openssl-dev
+          sudo apt-get install -y curl libcurl4-openssl-dev libuv1-dev
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         run: |
-          brew install curl
+          brew install curl libuv
 
       - name: Install Windows dependencies
         if: runner.os == 'Windows'
         run: |
           choco install curl -y
+          vcpkg install libuv
 
       - name: Install dependencies
         run: |
