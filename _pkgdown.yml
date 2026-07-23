@@ -1,0 +1,50 @@
+url: https://helgehecht.github.io/mzmlr
+
+template:
+  bootstrap: 5
+  bslib:
+    primary: "#2E86AB"
+    base_font: {google: "Roboto"}
+    heading_font: {google: "Roboto Slab"}
+
+development:
+  mode: auto
+
+authors:
+  Helge Hecht:
+    href: "https://orcid.org/0000-0001-6744-996X"
+
+reference:
+  - title: "Core Functions"
+    contents:
+      - read_mzml
+      - MzMlFile
+      - validate_mzml
+  - title: "Spectrum Access"
+    contents:
+      - get_spectrum
+      - get_spectra
+  - title: "Chromatogram Access"
+    contents:
+      - get_chromatogram
+      - get_chromatograms
+  - title: "Metadata Extraction"
+    contents:
+      - get_file_info
+      - get_instrument_info
+      - get_ms_levels
+
+articles:
+  - title: "Getting Started"
+    navbar: ~
+    contents:
+      - mzmlr-introduction
+
+navbar:
+  structure:
+    left: [intro, reference, articles, license]
+    right: [github, lightswitch, search]
+  components:
+    github:
+      icon: fa-github
+      href: https://github.com/RECETOX/mzmlr

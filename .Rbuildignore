@@ -8,3 +8,6 @@
 environment\.yml$
 optimization\.md$
 \.claude/
+^_pkgdown\.yml$
+^docs$
+^paper\.md$

@@ -9,6 +9,8 @@ Description: Provides functionality to validate and read mzML files, a standard
     validation against the official mzML XSD schema and HUPO-PSI MS Controlled
     Vocabulary.
 License: MIT + file LICENSE
+URL: https://github.com/RECETOX/mzmlr
+BugReports: https://github.com/RECETOX/mzmlr/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Imports:
@@ -25,3 +27,4 @@ Suggests:
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0
+Config/Needs/website: pkgdown
