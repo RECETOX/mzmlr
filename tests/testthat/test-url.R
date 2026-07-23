@@ -60,9 +60,20 @@ test_that("read_mzml from URL creates MzMlFile with temp_file", {
   expect_equal(mzml$spectrum_index$n_spectra, 4117)
 })
 
-test_that("validate_mzml handles URL format", {
-  # Test that validation returns appropriate error for invalid URL
-  result <- validate_mzml("https://invalid.url.that.does.not.exist/file.mzML")
+test_that("validate_mzml handles non-existent local file", {
+  # Test with a local file that doesn't exist (no network call)
+  result <- validate_mzml("C:\\nonexistent\\path\\file.mzML")
+
+  # Should fail with file not found
+  expect_false(result$valid)
+  expect_match(result$message, "File not found")
+})
+
+test_that("validate_mzml handles invalid URL with timeout", {
+  skip_on_ci()  # Skip on CI to avoid network issues
+
+  # Test with an invalid URL and short timeout to prevent hanging
+  result <- validate_mzml("https://invalid.url.that.does.not.exist/file.mzML", timeout = 10)
 
   # Should fail to download
   expect_false(result$valid)

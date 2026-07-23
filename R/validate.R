@@ -8,6 +8,8 @@
 #'   (http://, https://, ftp://)
 #' @param schema_path Optional path to custom XSD schema. If NULL, uses
 #'   the bundled mzML1.1.1.xsd schema.
+#' @param timeout Maximum time in seconds for URL download (default 30). Only
+#'   applies when downloading from URLs.
 #' @return A list with components:
 #'   \describe{
 #'     \item{valid}{Logical indicating if validation passed}
@@ -27,8 +29,8 @@
 #' # Local file
 #' result <- validate_mzml("path/to/file.mzML")
 #'
-#' # From URL
-#' result <- validate_mzml("https://example.com/data/file.mzML")
+#' # From URL with custom timeout
+#' result <- validate_mzml("https://example.com/data/file.mzML", timeout = 60)
 #'
 #' if (result$valid) {
 #'   cat("File is valid mzML version", result$version, "\n")
@@ -38,20 +40,26 @@
 #' }
 #'
 #' @export
-validate_mzml <- function(path, schema_path = NULL) {
+validate_mzml <- function(path, schema_path = NULL, timeout = 30) {
   # Check if path is a URL
   is_url <- grepl("^(https?|ftp)://", path, ignore.case = TRUE)
 
   actual_path <- path
 
   if (is_url) {
-    # Download file to temporary location
+    # Download file to temporary location with timeout
     temp_file <- tempfile(fileext = ".mzML")
     on.exit(unlink(temp_file), add = TRUE)
 
     tryCatch(
       {
-        utils::download.file(path, destfile = temp_file, mode = "wb", quiet = TRUE)
+        utils::download.file(
+          path,
+          destfile = temp_file,
+          mode = "wb",
+          quiet = TRUE,
+          timeout = timeout
+        )
       },
       error = function(e) {
         return(list(

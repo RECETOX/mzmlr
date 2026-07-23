@@ -39,13 +39,13 @@ MzMlFile <- function(path, xml_doc = NULL, validate = TRUE, build_index = NULL) 
   temp_file <- NULL
 
   if (is_url) {
-    # Download file to temporary location
+    # Download file to temporary location with timeout
     temp_file <- tempfile(fileext = ".mzML")
     on.exit(unlink(temp_file), add = TRUE)
 
     tryCatch(
       {
-        utils::download.file(path, destfile = temp_file, mode = "wb", quiet = TRUE)
+        utils::download.file(path, destfile = temp_file, mode = "wb", quiet = TRUE, timeout = 60)
       },
       error = function(e) {
         cli::cli_abort("Failed to download file from URL: {.url {path}}\nError: {e$message}")
