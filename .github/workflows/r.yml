@@ -32,6 +32,24 @@ jobs:
         with:
           r-version: ${{ matrix.r-version }}
       - uses: r-lib/actions/setup-pandoc@v2
+
+        # Install platform-specific dependencies
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl-devel
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install curl
+
+      - name: Install Windows dependencies
+        if: runner.os == 'Windows'
+        run: |
+          choco install curl -y
+
       - name: Install dependencies
         run: |
           install.packages(c("curl", "fs", "remotes", "rcmdcheck", "pandoc"))
