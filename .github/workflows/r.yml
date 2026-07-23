@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
-        r-version: ['4.5', 'release']
+        r-version: ['4.5', 'release', 'devel']
 
     steps:
       - uses: actions/checkout@v6
