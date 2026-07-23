@@ -1,9 +1,9 @@
 # mzmlr
 
 <!-- badges: start -->
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html)
 [![R CMD check](https://github.com/RECETOX/mzmlr/actions/workflows/r.yml/badge.svg)](https://github.com/RECETOX/mzmlr/actions/workflows/r.yml)
 <!-- [![CRAN status](https://www.r-pkg.org/badges/version/mzmlr)](https://CRAN.R-project.org/package=mzmlr) -->
-[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html)
 <!-- badges: end -->
 
 ## Overview

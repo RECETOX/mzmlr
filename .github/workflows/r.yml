@@ -32,8 +32,8 @@ jobs:
         with:
           r-version: ${{ matrix.r-version }}
       - uses: r-lib/actions/setup-pandoc@v2
-
-        # Install platform-specific dependencies
+      - uses: r-lib/actions/setup-tinytex@v2
+      # Install platform-specific dependencies
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
