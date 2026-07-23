@@ -4,7 +4,7 @@
 \alias{validate_mzml}
 \title{Validate mzML file against XSD schema}
 \usage{
-validate_mzml(path, schema_path = NULL)
+validate_mzml(path, schema_path = NULL, timeout = 30)
 }
 \arguments{
 \item{path}{Character string giving the path to the mzML file or a URL
@@ -12,6 +12,9 @@ validate_mzml(path, schema_path = NULL)
 
 \item{schema_path}{Optional path to custom XSD schema. If NULL, uses
 the bundled mzML1.1.1.xsd schema.}
+
+\item{timeout}{Maximum time in seconds for URL download (default 30). Only
+applies when downloading from URLs.}
 }
 \value{
 A list with components:
@@ -38,8 +41,8 @@ validated, and the temporary file is automatically cleaned up.
 # Local file
 result <- validate_mzml("path/to/file.mzML")
 
-# From URL
-result <- validate_mzml("https://example.com/data/file.mzML")
+# From URL with custom timeout
+result <- validate_mzml("https://example.com/data/file.mzML", timeout = 60)
 
 if (result$valid) {
   cat("File is valid mzML version", result$version, "\n")
