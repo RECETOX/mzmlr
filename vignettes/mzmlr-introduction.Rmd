@@ -318,4 +318,4 @@ mzml <- read_mzml("file.mzML", validate = FALSE)
 
 - [HUPO-PSI mzML specification](https://www.psidev.info/mzml)
 - [mzML GitHub repository](https://github.com/HUPO-PSI/mzML)
-- [mzR package](https://rdrr.io/cran/mzR/)
+- [mzR package](https://recetox.github.io/mzmlr/)
