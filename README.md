@@ -72,6 +72,12 @@ spectra <- get_spectra(mzml, indices = 1:100)
 
 # Get all MS1 spectra
 ms1_spectra <- get_spectra(mzml, ms_level = 1)
+
+# Control precision for memory efficiency
+# Default (0) uses float32 for intensities
+spec_float32 <- get_spectrum(mzml, 1, intensity_precision = 0)
+# NULL keeps full double precision
+spec_full <- get_spectrum(mzml, 1, intensity_precision = NULL)
 ```
 
 ### Reading chromatograms
@@ -87,6 +93,18 @@ if (length(chromatograms) > 0) {
 }
 ```
 
+### Reading from URLs
+
+The package supports reading mzML files directly from URLs:
+
+```r
+# Read from a URL (file is downloaded temporarily and cleaned up automatically)
+mzml <- read_mzml("https://example.com/data/file.mzML")
+
+# With custom timeout for large files
+mzml <- read_mzml("https://example.com/data/large_file.mzML", validate = TRUE)
+```
+
 ### Validation
 
 ```r
@@ -99,6 +117,21 @@ if (result$valid) {
   cat("Validation errors:", result$message, "\n")
 }
 ```
+
+## Performance Tips
+
+### Memory efficiency
+
+1. **Use lazy loading** (default): Binary data is only decoded when requested
+2. **Enable spectrum indexing**: For files >10MB, index is built automatically for efficient random access
+3. **Process in batches**: Use `get_spectra()` with indices to process spectra in manageable chunks
+4. **Control precision**: Use `intensity_precision = 0` (default) for float32 conversion to reduce memory by 50%
+
+### Speed optimization
+
+1. **Disable validation** if you trust your input files: `read_mzml("file.mzML", validate = FALSE)`
+2. **Use batch reading**: Get multiple spectra at once with `get_spectra(mzml, indices = 1:100)`
+3. **Filter by MS level**: When possible, use `ms_level` parameter to avoid unnecessary processing
 
 ## Features
 
@@ -115,7 +148,7 @@ print(mzml)
 #   Spectra: 4117
 ```
 
-### Lazy loading
+### Lazy loading and indexing
 
 By default, binary data is not decoded until explicitly requested, enabling efficient handling of large files:
 
@@ -127,11 +160,32 @@ mzml <- read_mzml("large_file.mzML", lazy = TRUE)
 spec <- get_spectrum(mzml, 1)
 ```
 
+### Spectrum indexing for memory-efficient random access
+
+For files larger than 10MB, the package automatically builds a spectrum index that enables memory-efficient random access without loading the entire XML into memory:
+
+```r
+# Index is built automatically for files > 10MB
+mzml <- read_mzml("large_file.mzML")
+
+# Force index building for smaller files
+mzml <- read_mzml("small_file.mzML", build_index = TRUE)
+
+# Disable index building
+mzml <- read_mzml("file.mzML", build_index = FALSE)
+
+# Access spectra efficiently using the index
+spec <- get_spectrum(mzml, 1)  # Reads only the requested spectrum from disk
+```
+
+The index stores byte positions of each spectrum in the file, allowing direct seeking to specific spectra without parsing the entire XML document.
+
 ## Dependencies
 
 ### Required
 - **xml2**: XML parsing
-- **rlang**: Error handling and utilities
+- **cli**: Command line interface and error messages
+- **glue**: String interpolation for error messages
 
 ### Optional (for improved performance)
 - **openssl**: Faster base64 decoding

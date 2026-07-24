@@ -30,19 +30,43 @@ install.packages("mzmlr")
 # devtools::install_github("RECETOX/mzmlr")
 ```
 
-## Basic Usage
+## Reading mzML Files
 
-### Reading an mzML File
+### Local files
 
-```{r read-example, eval = FALSE}
+```{r read-local, eval = FALSE}
 library(mzmlr)
 
-# Read an mzML file with validation
+# Read an mzML file with validation (default)
 mzml <- read_mzml("path/to/file.mzML")
 
 # The returned object is of class MzMlFile
 class(mzml)
 # [1] "MzMlFile"
+
+# Disable validation for faster loading
+mzml <- read_mzml("path/to/file.mzML", validate = FALSE)
+```
+
+### Reading from URLs
+
+The package supports reading mzML files directly from web locations. The file is automatically downloaded to a temporary location and cleaned up when no longer needed:
+
+```{r read-url, eval = FALSE}
+# Read from a URL
+mzml <- read_mzml("https://example.com/data/file.mzML")
+
+# With custom timeout for large files
+mzml <- read_mzml(
+  "https://example.com/data/large_file.mzML",
+  validate = TRUE
+)
+
+# The temp_file component contains the path to the downloaded file
+# It will be automatically cleaned up when the R session ends
+if (!is.null(mzml$temp_file)) {
+  cat("Downloaded to:", mzml$temp_file, "\n")
+}
 ```
 
 ### File Validation
@@ -139,16 +163,67 @@ if (length(chromatograms) > 0) {
 }
 ```
 
+## Spectrum Indexing for Memory-Efficient Random Access
+
+For files larger than 10MB, `mzmlr` automatically builds a spectrum index that enables memory-efficient random access without loading the entire XML document into memory. The index stores byte positions of each spectrum, allowing direct seeking to specific spectra:
+
+```{r indexing, eval = FALSE}
+# Index is built automatically for files > 10MB
+mzml <- read_mzml("large_file.mzML")
+
+# Check if index was built
+if (!is.null(mzml$spectrum_index)) {
+  cat("Index with", mzml$spectrum_index$n_spectra, "spectra\n")
+}
+
+# Force index building for smaller files
+mzml <- read_mzml("small_file.mzML", build_index = TRUE)
+
+# Disable index building if not needed
+mzml <- read_mzml("file.mzML", build_index = FALSE)
+```
+
+When an index is available, `get_spectrum()` reads only the requested spectrum directly from disk:
+
+```{r indexed-reading, eval = FALSE}
+# Efficient random access - only reads the requested spectrum
+spec1 <- get_spectrum(mzml, 1)
+spec1000 <- get_spectrum(mzml, 1000)
+
+# Batch reading also benefits from the index
+specs <- get_spectra(mzml, indices = 1:100)
+```
+
+## Precision Control
+
+The package provides options to control numeric precision for memory efficiency:
+
+```{r precision, eval = FALSE}
+# Default: convert intensities to float32 (~7 significant digits)
+# This reduces memory usage by 50% compared to double precision
+spec <- get_spectrum(mzml, 1)  # intensity_precision = 0 by default
+
+# Keep full double precision for intensities
+spec_full <- get_spectrum(mzml, 1, intensity_precision = NULL)
+
+# Round to specific number of decimal places
+spec_rounded <- get_spectrum(mzml, 1, intensity_precision = 2)
+
+# Same options apply to retention times
+spec <- get_spectrum(mzml, 1, time_precision = 2)  # default
+spec_full_time <- get_spectrum(mzml, 1, time_precision = NULL)
+```
+
 ## Memory-Efficient Processing
 
-For large files, process spectra one at a time to avoid memory issues:
+For large files, process spectra in batches to avoid memory issues:
 
 ```{r memory-efficient, eval = FALSE}
 # Get total count without loading data
 info <- get_file_info(mzml)
 n_spectra <- info$spectrum_count
 
-# Process in batches
+# Process in batches using the index for efficient access
 batch_size <- 100
 for (start in seq(1, n_spectra, by = batch_size)) {
   end <- min(start + batch_size - 1, n_spectra)
@@ -181,7 +256,7 @@ summary(spec$intensity)
 
 ## Error Handling
 
-The package provides informative error messages:
+The package provides informative error messages using the `cli` package:
 
 ```{r error-handling, eval = FALSE}
 tryCatch(
@@ -192,6 +267,32 @@ tryCatch(
     cat("Error:", conditionMessage(e), "\n")
   }
 )
+```
+
+Common errors include:
+- **File not found**: When the specified path doesn't exist
+- **Validation failed**: When the mzML file doesn't conform to the schema
+- **Index out of range**: When requesting a spectrum/chromatogram that doesn't exist
+- **XML parsing error**: When the file is not well-formed XML
+
+## Troubleshooting
+
+### Tests hanging on Windows
+
+If tests appear to hang indefinitely on Windows, this may be related to file I/O issues. The current version uses binary mode file reading to avoid line-ending issues between Windows (`\r\n`) and Unix (`\n`) systems.
+
+### Memory issues with large files
+
+1. Enable spectrum indexing for files >10MB (automatic by default)
+2. Use `intensity_precision = 0` for float32 conversion
+3. Process spectra in batches instead of loading all at once
+4. Call `gc()` after processing large batches
+
+### Slow validation
+
+Disable validation if you trust your input files:
+```r
+mzml <- read_mzml("file.mzML", validate = FALSE)
 ```
 
 ## Advanced Features

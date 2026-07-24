@@ -4,10 +4,12 @@
 \alias{.build_spectrum_index}
 \title{Build spectrum index from mzML file}
 \usage{
-.build_spectrum_index(file_path)
+.build_spectrum_index(file_path, chunk_size = 65536)
 }
 \arguments{
 \item{file_path}{Path to the mzML file}
+
+\item{chunk_size}{Integer; number of bytes to read at a time (default 64KB)}
 }
 \value{
 A list containing:
@@ -21,6 +23,7 @@ A list containing:
 \description{
 Scans the mzML file once and records the byte position of each spectrum
 element. The index allows random access to spectra without loading the
-entire file into memory. Reads the file line-by-line to minimize memory usage.
+entire file into memory. Reads the file in binary mode with chunked reading
+to minimize memory usage and avoid Windows line-ending issues.
 }
 \keyword{internal}
