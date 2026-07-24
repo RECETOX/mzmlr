@@ -7,9 +7,11 @@
 #'
 #' Scans the mzML file once and records the byte position of each spectrum
 #' element. The index allows random access to spectra without loading the
-#' entire file into memory. Reads the file line-by-line to minimize memory usage.
+#' entire file into memory. Reads the file in binary mode with chunked reading
+#' to minimize memory usage and avoid Windows line-ending issues.
 #'
 #' @param file_path Path to the mzML file
+#' @param chunk_size Integer; number of bytes to read at a time (default 64KB)
 #' @return A list containing:
 #'   \describe{
 #'     \item{positions}{Integer vector of byte offsets for each spectrum start}
@@ -18,7 +20,7 @@
 #'     \item{file_size}{File size in bytes}
 #'   }
 #' @keywords internal
-.build_spectrum_index <- function(file_path) {
+.build_spectrum_index <- function(file_path, chunk_size = 65536) {
   file_size <- file.info(file_path)$size
 
   if (file_size == 0) {
@@ -30,9 +32,9 @@
     ))
   }
 
-  # Open file connection for reading lines
-  con <- file(file_path, "r", encoding = "UTF-8")
-  on.exit(close(con))
+  # Open file connection in binary mode to avoid Windows line-ending issues
+  con <- file(file_path, "rb")
+  on.exit(close(con), add = TRUE)
 
   # Track byte position
   current_pos <- 0L
@@ -49,56 +51,95 @@
   start_pattern <- "<spectrum(?![a-zA-Z])"
   end_pattern <- "</spectrum>"
 
-  # Read file line by line
-  while (TRUE) {
-    line <- readLines(con, n = 1, warn = FALSE)
+  # Buffer to hold incomplete chunks across iterations
+  buffer <- raw(0)
+  buffer_pos <- 0L # Byte position where buffer content starts
 
-    if (length(line) == 0 || nchar(line) == 0) {
-      # Check if we got an empty line at end vs true EOF
-      if (current_pos >= file_size) break
-      next
+  # Safety counter to prevent infinite loops
+  max_iterations <- ceiling(file_size / chunk_size) + 10
+  iteration_count <- 0L
+
+  # Read file in chunks
+  while (current_pos < file_size) {
+    iteration_count <- iteration_count + 1L
+
+    # Safety check against infinite loops
+    if (iteration_count > max_iterations) {
+      warning(sprintf(
+        "Maximum iterations (%d) reached during indexing; possible malformed file. Found %d spectra so far.",
+        max_iterations, spectrum_count
+      ))
+      break
     }
 
-    line_bytes <- nchar(line, type = "bytes") + 1L # +1 for newline character
+    # Read next chunk
+    bytes_to_read <- min(chunk_size, file_size - current_pos)
+    chunk_raw <- readBin(con, what = "raw", n = bytes_to_read)
 
-    # Find spectrum start tags in this line
-    if (grepl(start_pattern, line, ignore.case = TRUE, perl = TRUE)) {
-      # Get all match positions within the line
-      matches <- gregexpr(start_pattern, line, ignore.case = TRUE, perl = TRUE)
-      if (matches[[1]][1] > 0) {
-        for (pos_in_line in as.integer(matches[[1]])) {
-          spectrum_count <- spectrum_count + 1L
+    if (length(chunk_raw) == 0) {
+      # EOF reached
+      break
+    }
 
-          # Expand vectors if needed
-          if (spectrum_count > length(positions)) {
-            new_len <- length(positions) * 2
-            positions <- c(positions, integer(new_len))
-            end_positions <- c(end_positions, integer(new_len))
-          }
+    # Append to buffer
+    buffer <- c(buffer, chunk_raw)
+    chunk_start_pos <- buffer_pos
 
-          # Calculate absolute byte position
-          positions[spectrum_count] <- current_pos + pos_in_line - 1L
+    # Convert buffer to character for pattern matching
+    # Use latin1 to avoid encoding issues during scanning
+    buffer_char <- rawToChar(buffer)
+
+    # Find all spectrum start tags
+    start_matches <- gregexpr(start_pattern, buffer_char, ignore.case = TRUE, perl = TRUE)[[1]]
+
+    if (start_matches[1] > 0) {
+      for (match_pos in as.integer(start_matches)) {
+        spectrum_count <- spectrum_count + 1L
+
+        # Expand vectors if needed
+        if (spectrum_count > length(positions)) {
+          new_len <- length(positions) * 2
+          positions <- c(positions, integer(new_len))
+          end_positions <- c(end_positions, integer(new_len))
+        }
+
+        # Calculate absolute byte position
+        positions[spectrum_count] <- chunk_start_pos + match_pos - 1L
+      }
+    }
+
+    # Find all spectrum end tags
+    end_matches <- gregexpr(end_pattern, buffer_char, ignore.case = TRUE)[[1]]
+
+    if (end_matches[1] > 0) {
+      match_lengths <- attr(end_matches, "match.length")
+      for (i in seq_along(end_matches)) {
+        if (end_idx <= spectrum_count) {
+          # Position of end tag + its length
+          end_positions[end_idx] <- chunk_start_pos + end_matches[i] + match_lengths[i] - 1L
+          end_idx <- end_idx + 1L
         }
       }
     }
 
-    # Find end tags in this line
-    if (grepl(end_pattern, line, ignore.case = TRUE)) {
-      matches <- gregexpr(end_pattern, line, ignore.case = TRUE)
-      if (matches[[1]][1] > 0) {
-        match_lengths <- attr(matches[[1]], "match.length")
-        for (i in seq_along(matches[[1]])) {
-          if (end_idx <= spectrum_count) {
-            # Position of end tag + its length
-            end_positions[end_idx] <- current_pos + matches[[1]][i] + match_lengths[i] - 1L
-            end_idx <- end_idx + 1L
-          }
-        }
+    # Advance position by chunk size
+    current_pos <- current_pos + length(chunk_raw)
+    buffer_pos <- current_pos
+
+    # Keep only unmatched portion of buffer that might contain partial tags
+    # This prevents memory buildup for large files
+    # Look for the last complete </spectrum> tag
+    last_end_match <- regexpr("</spectrum>", buffer_char, ignore.case = TRUE, perl = TRUE)
+    if (last_end_match[1] > 0) {
+      keep_up_to <- last_end_match[1] + attr(last_end_match, "match.length")
+      if (keep_up_to < length(buffer)) {
+        # Keep some overlap to catch tags split across chunks
+        overlap <- 100L
+        keep_bytes <- min(keep_up_to + overlap, length(buffer))
+        buffer <- buffer[1:keep_bytes]
+        buffer_pos <- current_pos - (length(buffer) - keep_bytes)
       }
     }
-
-    # Update byte position
-    current_pos <- current_pos + line_bytes
   }
 
   # Trim vectors to actual size
