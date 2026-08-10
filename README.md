@@ -185,7 +185,6 @@ The index stores byte positions of each spectrum in the file, allowing direct se
 ### Required
 - **xml2**: XML parsing
 - **cli**: Command line interface and error messages
-- **glue**: String interpolation for error messages
 
 ### Optional (for improved performance)
 - **openssl**: Faster base64 decoding

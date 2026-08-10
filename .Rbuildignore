@@ -7,7 +7,6 @@
 ^8_qc_no_dil_milliq\.mzml$
 ^xsd$
 environment\.yml$
-optimization\.md$
 \.claude/
 ^_pkgdown\.yml$
 ^docs$
