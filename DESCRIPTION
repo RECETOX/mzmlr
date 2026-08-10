@@ -1,7 +1,7 @@
 Package: mzmlr
 Title: Read and Validate mzML Mass Spectrometry Files
 Version: 0.1.0
-Author: Helge Hecht
+Author: Helge Hecht [aut, cre]
 Maintainer: Helge Hecht <helge.hecht@recetox.muni.cz>
 Authors@R: person(given = "Helge",
                     family = "Hecht",
