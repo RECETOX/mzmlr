@@ -3,6 +3,7 @@
 ^[.]git$
 ^[.]github$
 ^README\.md$
+^LICENSE\.md$
 ^8_qc_no_dil_milliq\.mzml$
 ^xsd$
 environment\.yml$
