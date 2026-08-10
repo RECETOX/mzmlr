@@ -12,7 +12,7 @@ Description: Provides functionality to validate and read mzML files, a standard
     the 'mzR' package, using native R XML handling capabilities. Supports
     validation against the official mzML XSD schema and HUPO-PSI MS Controlled
     Vocabulary.
-License: MIT
+License: MIT + file LICENSE
 URL: https://github.com/RECETOX/mzmlr
 BugReports: https://github.com/RECETOX/mzmlr/issues
 Encoding: UTF-8
